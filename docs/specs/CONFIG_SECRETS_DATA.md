@@ -1,7 +1,7 @@
 # Config, secrets and test data
 
 ## Config
-- Typed with pydantic-settings: `PatafConfig` (core) extended by app-pack and variant config models via plugin.
+- Typed pydantic models: `PatafConfig` (core, `extra="forbid"`) extended by app-pack and variant section models via plugin (Phase 2). Layers are merged by `core.config.load_config` with per-value provenance (ADR-0015); `PATAF_A__B=value` sets `a.b` (JSON for lists/objects); unknown keys and `PATAF_*` variables are errors.
 - Files: YAML; env overlays in `envs/<env>.yaml`; `Env` is an enum declared per variant suite (`local, dev, qa, uat, stage`).
 - `pataf config show --resolved` prints merged config with value source; secrets shown as `***`.
 - Invalid config fails fast at startup with a precise pydantic error (exit code 2, REPORTING §6).

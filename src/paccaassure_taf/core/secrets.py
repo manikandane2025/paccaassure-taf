@@ -80,17 +80,18 @@ class SecretRef(BaseModel):
             return data
         match = _REF_PATTERN.match(data.strip())
         if match is None:
-            raise ValueError(f"not a secret reference: '{data}'. Expected one of: {_FORMS}")
+            # Never echo the value: a misplaced value may itself be a plaintext secret.
+            raise ValueError(f"value is not a secret reference (value hidden). Expected one of: {_FORMS}")
         return match.groupdict()
 
     @model_validator(mode="after")
     def _check_shape(self) -> Self:
         if self.scheme is SecretScheme.ENV and not _ENV_NAME.match(self.path):
-            raise ValueError(f"env:// needs an environment variable name, got '{self.path}'")
+            raise ValueError("env:// needs an environment variable name ([A-Za-z_][A-Za-z0-9_]*)")
         if self.scheme is SecretScheme.KEY_VAULT and self.path.count("/") != 1:
-            raise ValueError(f"kv:// needs '<vault>/<name>', got '{self.path}'")
+            raise ValueError("kv:// needs exactly '<vault>/<name>'")
         if self.scheme is SecretScheme.HASHICORP_VAULT and not self.key:
-            raise ValueError(f"hcv:// needs '<path>#<key>', got '{self.path}'")
+            raise ValueError("hcv:// needs '<path>#<key>'")
         return self
 
     @model_serializer
@@ -110,7 +111,7 @@ class SecretRef(BaseModel):
         except ValidationError as error:
             details = "; ".join(str(e["msg"]) for e in error.errors())
             raise SecretError(
-                f"Invalid secret reference '{text}'", cause=details, fix=f"Use {_FORMS}."
+                "Invalid secret reference (value hidden)", cause=details, fix=f"Use {_FORMS}."
             ) from error
 
     @override

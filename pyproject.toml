@@ -23,7 +23,6 @@ classifiers = [
 # cap = next major. For 0.x packages the cap is <1.0. Exact versions live in uv.lock.
 dependencies = [
     "pydantic>=2.10,<3",
-    "pydantic-settings>=2.7,<3",
     "structlog>=25.1,<27",           # CalVer: cap at the year after next
     "typer>=0.15,<1",
     "pyyaml>=6.0.2,<7",
