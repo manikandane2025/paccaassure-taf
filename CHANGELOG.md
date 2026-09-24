@@ -9,6 +9,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - Reference framework harvest notes (`docs/REFERENCE_FRAMEWORK_NOTES.md`).
 - ADR-0013 external result importers (Proposed) and ADR-0014 tool-agnostic CI (Accepted).
 - Repository hygiene: `.gitattributes` (LF, CRLF for Windows scripts), `.editorconfig`, `.gitignore`, `.python-version`.
+- uv project (`pyproject.toml`, `uv.lock`) with extras per PRODUCT §2; mypy `--strict`, ruff, pytest configuration.
+- Package skeleton: 16 `paccaassure_taf` subpackages, each with a nested `CLAUDE.md`.
+- Partial type stubs for behave (`stubs/behave`).
+- Seven import-linter contracts (ARCHITECTURE §3) with violation tests.
+- Unit tests: package smoke test, version, behave stubs, import contracts, license checker.
+- SPDX-aware dependency license allow-list check (`scripts/check_licenses.py`, `scripts/license_policy.toml`).
+- `scripts/dev.py` cross-shell task runner: lint, format, typecheck, imports, test, licenses, audit, hooks, secrets.
+- pre-commit (all local hooks, gitleaks via Docker) and a per-file Claude Code PostToolUse hook.
+- GitHub Actions CI as a thin adapter over `dev.py`: checks, unit-test matrix (Linux/Windows × 3.12/3.13), lowest-direct floors, licenses + vulnerability audit.
 
 ### Changed
 - Specs updated after the Phase 0 review: import-linter contracts, `World[S]`, exit codes decided by the gate, pg8000 for PostgreSQL, SPDX-aware license policy, `StepResult.outputs`, `FailureInfo.category = auth`, `@risk` tag, cross-shell commands.

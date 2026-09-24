@@ -1,0 +1,83 @@
+# Core CI — a THIN ADAPTER over scripts/dev.py (ADR-0014).
+# No lint/test logic lives here: every step calls a dev.py task that developers run locally.
+# Azure Pipelines / Jenkins adapters (Phase 8) must call the same tasks.
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_FROZEN: "1"          # never re-resolve in CI: uv.lock is the source of truth
+  PYTHONUTF8: "1"
+  FORCE_COLOR: "1"
+
+jobs:
+  checks:
+    name: lint · format · types · imports · hooks · secrets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0    # gitleaks scans full history
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --all-extras
+      - run: uv run python scripts/dev.py lint format-check typecheck imports
+      - run: uv run python scripts/dev.py hooks
+      - run: uv run python scripts/dev.py secrets
+
+  test:
+    name: unit tests · ${{ matrix.os }} · py${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.12", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+      - run: uv sync --all-extras
+      - run: uv run python scripts/dev.py test
+
+  lowest-direct:
+    name: unit tests · lowest direct dependency versions
+    runs-on: ubuntu-latest
+    env:
+      UV_FROZEN: "0"      # this job deliberately re-resolves to the declared floors
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --all-extras --resolution lowest-direct
+      - run: uv run --no-sync python scripts/dev.py typecheck test
+
+  dependencies:
+    name: licenses · vulnerability audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv sync --all-extras
+      - run: uv run python scripts/dev.py licenses audit
