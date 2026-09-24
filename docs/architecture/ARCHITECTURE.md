@@ -82,6 +82,8 @@ core
 ```
 **Contract 3 — forbidden:** `reporting`, `history`, `gates`, `sinks` must not import `bdd`, `flows`, `web`, `jsp`, `api`, `desktop`, `elements`, `data`, `evidence`.
 **Contract 4 — forbidden externals:** `core` and `results` must not import `playwright`, `appium`, `behave`; only `web` and `jsp` may import `playwright`; only `desktop` may import `appium`; only `bdd` and `runner` may import `behave`.
+**Contract 5 — forbidden:** runtime packages (`core` … `bdd`) must not import `reporting`, `history`, `gates`, `sinks`. (Contracts 1 and 2 each constrain only the packages they list, so without this a runtime→post-run import such as `elements → history` would pass.)
+`tests/unit/test_import_contracts.py` proves each contract type fails on a deliberate violation.
 `Sensitive[T]` lives in `core.masking` (masking must see it) and is re-exported by `paccaassure_taf.data` for authors.
 
 ## 4. Runtime flow

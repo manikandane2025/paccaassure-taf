@@ -78,6 +78,23 @@ def _typecheck() -> list[list[str]]:
     return [python_module("mypy")]
 
 
+def lint_imports(*args: str) -> list[str]:
+    """Build an import-linter command that runs through the interpreter.
+
+    Console-script ``.exe`` launchers can be blocked by endpoint security on
+    managed Windows machines; ``python -c`` is not. Use this everywhere.
+
+    Example:
+        lint_imports("--no-cache", "--contract", "runtime-stack")
+    """
+    code = "from importlinter.cli import lint_imports_command; lint_imports_command()"
+    return [sys.executable, "-c", code, *args]
+
+
+def _imports() -> list[list[str]]:
+    return [lint_imports("--no-cache")]
+
+
 def _test() -> list[list[str]]:
     return [python_module("pytest", "tests/unit")]
 
@@ -89,12 +106,13 @@ TASKS: dict[str, Task] = {
         Task("format-check", "ruff format --check", _format_check),
         Task("format", "apply ruff fixes and formatting", _format),
         Task("typecheck", "mypy --strict (config in pyproject.toml)", _typecheck),
+        Task("imports", "import-linter layer contracts (ARCHITECTURE §3)", _imports),
         Task("test", "unit tests", _test),
     )
 }
 
 # Aggregate run by CI and before every PR. Order: fastest feedback first.
-CHECK_SEQUENCE: tuple[str, ...] = ("lint", "format-check", "typecheck", "test")
+CHECK_SEQUENCE: tuple[str, ...] = ("lint", "format-check", "typecheck", "imports", "test")
 
 
 def run_task(task: Task) -> bool:

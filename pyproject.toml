@@ -144,9 +144,129 @@ ban-relative-imports = "all"
 [tool.ruff.lint.per-file-ignores]
 "src/paccaassure_taf/core/config/**" = ["TID251"]   # the one place allowed to read the environment
 "scripts/**" = ["T201", "S603", "S607", "TID251"]   # dev task runner: prints, runs tools, passes env through
-"tests/**" = ["S101", "D", "PLR2004", "PLC2701"]
+"tests/**" = ["S101", "S603", "D", "PLR2004", "PLC2701"]
 "stubs/**" = ["D", "N", "ANN401"]
 "sandbox/**" = ["D", "T201", "S104"]
+
+# ---------------------------------------------------------------- import-linter (ARCHITECTURE §3)
+[tool.importlinter]
+root_package = "paccaassure_taf"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "runtime-stack"
+name = "Contract 1: runtime stack (higher may import lower, never the reverse)"
+type = "layers"
+containers = ["paccaassure_taf"]
+layers = [
+    "runner",
+    "bdd",
+    "flows",
+    "jsp",
+    "web | api | desktop",
+    "elements | data",
+    "evidence",
+    "results",
+    "core",
+]
+
+[[tool.importlinter.contracts]]
+id = "post-run-stack"
+name = "Contract 2: post-run stack"
+type = "layers"
+containers = ["paccaassure_taf"]
+layers = [
+    "runner",
+    "sinks | gates | reporting",
+    "history",
+    "results",
+    "core",
+]
+
+[[tool.importlinter.contracts]]
+id = "post-run-isolation"
+name = "Contract 3: post-run packages never import drivers, bdd, flows, elements, data or evidence"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.reporting",
+    "paccaassure_taf.history",
+    "paccaassure_taf.gates",
+    "paccaassure_taf.sinks",
+]
+forbidden_modules = [
+    "paccaassure_taf.bdd",
+    "paccaassure_taf.flows",
+    "paccaassure_taf.web",
+    "paccaassure_taf.jsp",
+    "paccaassure_taf.api",
+    "paccaassure_taf.desktop",
+    "paccaassure_taf.elements",
+    "paccaassure_taf.data",
+    "paccaassure_taf.evidence",
+]
+
+[[tool.importlinter.contracts]]
+id = "runtime-isolation"
+name = "Contract 5: runtime packages never import post-run packages"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.bdd",
+    "paccaassure_taf.flows",
+    "paccaassure_taf.jsp",
+    "paccaassure_taf.web",
+    "paccaassure_taf.api",
+    "paccaassure_taf.desktop",
+    "paccaassure_taf.elements",
+    "paccaassure_taf.data",
+    "paccaassure_taf.evidence",
+    "paccaassure_taf.results",
+    "paccaassure_taf.core",
+]
+forbidden_modules = [
+    "paccaassure_taf.reporting",
+    "paccaassure_taf.history",
+    "paccaassure_taf.gates",
+    "paccaassure_taf.sinks",
+]
+
+[[tool.importlinter.contracts]]
+id = "playwright-only-in-web"
+name = "Contract 4a: only web and jsp import playwright"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.core", "paccaassure_taf.results", "paccaassure_taf.evidence",
+    "paccaassure_taf.elements", "paccaassure_taf.data", "paccaassure_taf.api",
+    "paccaassure_taf.desktop", "paccaassure_taf.flows", "paccaassure_taf.bdd",
+    "paccaassure_taf.reporting", "paccaassure_taf.history", "paccaassure_taf.gates",
+    "paccaassure_taf.sinks", "paccaassure_taf.runner",
+]
+forbidden_modules = ["playwright"]
+
+[[tool.importlinter.contracts]]
+id = "appium-only-in-desktop"
+name = "Contract 4b: only desktop imports appium"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.core", "paccaassure_taf.results", "paccaassure_taf.evidence",
+    "paccaassure_taf.elements", "paccaassure_taf.data", "paccaassure_taf.api",
+    "paccaassure_taf.web", "paccaassure_taf.jsp", "paccaassure_taf.flows",
+    "paccaassure_taf.bdd", "paccaassure_taf.reporting", "paccaassure_taf.history",
+    "paccaassure_taf.gates", "paccaassure_taf.sinks", "paccaassure_taf.runner",
+]
+forbidden_modules = ["appium"]
+
+[[tool.importlinter.contracts]]
+id = "behave-only-in-bdd"
+name = "Contract 4c: only bdd and runner import behave"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.core", "paccaassure_taf.results", "paccaassure_taf.evidence",
+    "paccaassure_taf.elements", "paccaassure_taf.data", "paccaassure_taf.api",
+    "paccaassure_taf.web", "paccaassure_taf.jsp", "paccaassure_taf.desktop",
+    "paccaassure_taf.flows", "paccaassure_taf.reporting", "paccaassure_taf.history",
+    "paccaassure_taf.gates", "paccaassure_taf.sinks",
+]
+forbidden_modules = ["behave"]
 
 # ---------------------------------------------------------------- pytest
 [tool.pytest.ini_options]
