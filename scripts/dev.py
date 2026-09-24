@@ -70,7 +70,8 @@ def _format_check() -> list[list[str]]:
 
 
 def _format() -> list[list[str]]:
-    return [[tool("ruff"), "check", "--fix", "."], [tool("ruff"), "format", "."]]
+    # Format first: it resolves line-length issues that `check --fix` cannot.
+    return [[tool("ruff"), "format", "."], [tool("ruff"), "check", "--fix", "."]]
 
 
 def _typecheck() -> list[list[str]]:
