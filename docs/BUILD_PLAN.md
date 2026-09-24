@@ -15,6 +15,7 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - `pataf` must also run as `python -m paccaassure_taf` (locked-down endpoints block the `pataf.exe` launcher).
 - Exemption from hard rule 10: no runner exists yet, so Phase 1 features ship unit tests, docs and CHANGELOG but no sandbox e2e scenario or catalog regen.
 - ✅ ≥ 90% unit coverage on core; masking proven; actionable config errors; expired license degrades gracefully.
+- **Status (2026-09-24): acceptance met** — core coverage 98.4% (gate: `dev.py coverage`); masking proven by tests incl. logs, tracebacks, config errors; config errors name key + source layer; expired/missing/invalid license → degraded `LicenseStatus`, never raises. `pataf config show` works as `python -m paccaassure_taf`.
 
 ## Phase 2 — Results model + elements + web + typed BDD
 - `paccaassure_taf.results`: event and aggregate models, JSON Schema export, event writer, merger, `run.json`.

@@ -72,6 +72,7 @@ uv sync --all-extras                      # install workspace
 uv run python scripts/dev.py check        # ruff + format check + mypy + lint-imports + unit tests (what CI runs)
 uv run python scripts/dev.py licenses     # dependency license allow-list (ADR-0010)
 uv run python scripts/dev.py --help       # list every dev task
+uv run python -m paccaassure_taf config show --resolved   # = pataf config show (works on locked-down endpoints)
 uv run pataf doctor                     # env check: browsers, Appium, DB drivers, history store, license
 uv run pataf run --app demo --variant demo --env local --tags @smoke
 uv run pataf run --dry-run              # resolve every step, no execution
