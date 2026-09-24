@@ -1,0 +1,23 @@
+# Glossary (neutral product vocabulary)
+- **PaccaAssureTAF** — this product (PaccaAssure Test Automation Framework); CLI `pataf`, import `paccaassure_taf`.
+- **Core** — `paccaassure-taf-core`, our licensed product package.
+- **App pack** — customer-owned package of reusable automation for one application under test (surfaces, flows, steps, data models, smoke/regression).
+- **Variant suite** — customer-owned repo testing one deployment/client/state/region/tenant of one or more apps, extending app packs via overrides.
+- **Surface** — a page (web/JSP), screen (desktop) or endpoint (API) model. POM generalized.
+- **Flow** — multi-surface business task with typed inputs/outputs.
+- **World** — PaccaAssureTAF's typed facade over Behave's context.
+- **Surface registry** — maps a base surface type to a variant's override.
+- **Result event** — append-only record emitted during a run; the canonical source for every report and sink.
+- **RunResult / TestResult / StepResult** — aggregate result models (public contract).
+- **test_key** — stable identity of a test across runs, used for history.
+- **Failure signature** — normalized hash grouping equivalent failures across tests and runs.
+- **Baseline run** — previous comparable run used for new/regressed/fixed analysis.
+- **Flaky score** — 0–1 instability metric from status flips and pass-on-retry over a window.
+- **History store** — SQL database (SQLite/Postgres/SQL Server) holding run history in a star schema.
+- **Sink** — plugin that publishes results elsewhere (ADO, Jira, Power BI, Teams, webhook).
+- **Quality gate** — rule set that turns results + history into a pass/fail exit code.
+- **Evidence** — screenshots, traces, logs, HAR, API exchanges, page source attached to results.
+- **TMS** — test management system (ADO Test Plans, Jira Xray, Zephyr Scale).
+- **RTM** — requirements traceability matrix.
+- **Sensitive data** — PII/PHI/PCI; always masked, never in Git.
+- **Northwind Health** — fictitious demo company used in sandbox, examples and docs.
