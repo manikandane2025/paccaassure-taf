@@ -3,14 +3,16 @@
     "allow": [
       "Bash(uv run:*)",
       "Bash(uv sync:*)",
-      "Bash(uv add:*)",
       "Bash(git status:*)",
       "Bash(git diff:*)",
+      "Bash(git log:*)",
       "Bash(docker compose:*)"
     ],
     "deny": [
       "Read(./.env)",
-      "Read(./**/secrets/**)",
+      "Read(./.env.*)",
+      "Read(./secrets/**)",
+      "Read(./sandbox/.env)",
       "Bash(git push:*)"
     ]
   },
@@ -19,7 +21,7 @@
       {
         "matcher": "Edit|Write|MultiEdit",
         "hooks": [
-          { "type": "command", "command": "uv run ruff check --fix --quiet . && uv run ruff format --quiet . || true" }
+          { "type": "command", "command": "uv run --quiet --frozen python scripts/hooks/post_edit.py" }
         ]
       }
     ]

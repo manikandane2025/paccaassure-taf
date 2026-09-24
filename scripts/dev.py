@@ -117,6 +117,43 @@ def _audit() -> list[list[str]]:
     ]  # fmt: skip
 
 
+GITLEAKS_IMAGE = "ghcr.io/gitleaks/gitleaks:v8.30.1"
+
+
+def _gitleaks(*args: str) -> list[str]:
+    # The repo is bind-mounted read-only; safe.directory avoids git's "dubious ownership" refusal.
+    return [
+        "docker", "run", "--rm", "-v", f"{REPO_ROOT}:/repo:ro",
+        "-e", "GIT_CONFIG_COUNT=1", "-e", "GIT_CONFIG_KEY_0=safe.directory", "-e", "GIT_CONFIG_VALUE_0=*",
+        GITLEAKS_IMAGE, *args, "--redact", "--no-banner",
+    ]  # fmt: skip
+
+
+def _docker_available() -> bool:
+    try:
+        return subprocess.run(["docker", "info"], capture_output=True, check=False).returncode == 0
+    except OSError:
+        return False
+
+
+def _hooks() -> list[list[str]]:
+    return [python_module("pre_commit", "run", "--all-files", "--show-diff-on-failure")]
+
+
+def _secrets() -> list[list[str]]:
+    # Full git history, fail-closed (CI). Fails if Docker is unavailable.
+    return [_gitleaks("git", "/repo")]
+
+
+def _secrets_staged() -> list[list[str]]:
+    # Staged changes only (pre-commit). Fails open with a warning when Docker is down locally;
+    # CI's full-history `secrets` task is the enforcing gate.
+    if not _docker_available():
+        print("WARNING: Docker is not running; gitleaks skipped locally. CI will scan full history.")
+        return []
+    return [_gitleaks("git", "/repo", "--pre-commit", "--staged")]
+
+
 TASKS: dict[str, Task] = {
     task.name: task
     for task in (
@@ -128,6 +165,9 @@ TASKS: dict[str, Task] = {
         Task("test", "unit tests", _test),
         Task("licenses", "third-party license allow-list (ADR-0010)", _licenses),
         Task("audit", "known-vulnerability audit of locked deps (network)", _audit),
+        Task("hooks", "all pre-commit hooks on all files", _hooks),
+        Task("secrets", "gitleaks over full git history (Docker; CI)", _secrets),
+        Task("secrets-staged", "gitleaks over staged changes (Docker; pre-commit)", _secrets_staged),
     )
 }
 

@@ -13,7 +13,7 @@ Prerequisites: [uv](https://docs.astral.sh/uv/), Git, Docker (for the sandbox). 
 
 ```text
 uv sync --all-extras
-uv run pre-commit install
+uv run python -m pre_commit install
 uv run python scripts/dev.py check
 ```
 

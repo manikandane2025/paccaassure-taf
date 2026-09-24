@@ -40,6 +40,7 @@
 - Generated filenames: no `:`; slugify + short hash (avoids reserved names like `CON`/`NUL` and MAX_PATH issues). Run ids look like `20260924T101500Z-ab12cd`.
 - Line endings are LF in the repo (`.gitattributes`), except `*.ps1`/`*.cmd`/`*.bat` (CRLF).
 - Dev and CI tasks are Python (`scripts/dev.py`), never bash-only or PowerShell-only one-liners.
+- Invoke Python tools as `python -m <module>` (or `python -c` for tools without `__main__`), never through console-script `.exe` launchers: endpoint security on managed Windows machines blocks unsigned launchers in user-writable paths (`.venv\Scripts`, pre-commit's cache) with "Access is denied". For the same reason pre-commit hooks are all `repo: local` running from the locked uv environment.
 
 ## Git
 Conventional commits. Branches: `main` (released), `develop` (integration), `feature/<ticket>-<slug>` from `develop` (ADR-0003). PR template requires: spec updated? catalog regenerated? tests added? CHANGELOG?
