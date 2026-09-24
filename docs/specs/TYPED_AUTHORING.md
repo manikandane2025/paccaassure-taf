@@ -85,13 +85,14 @@ class MemberSearchPage(WebPage):
         return self.go(MemberDetailPage)            # waits for is_loaded(); returns typed page
 ```
 Rules: no locator strings inside methods; methods do **one surface's** work; navigation returns a page type; methods have docstrings with an example.
+**Surfaces expose actions and state, never assertions.** A page method may return a value (`status_label.text()`, `is_loaded()`), but pass/fail decisions live in steps and flows via `expect`, so every assertion gets the same auto-wait, soft-mode, masking and evidence handling.
 
 ## 4. JSP pages, desktop screens, API endpoints — same shape
 ```python
 class LegacyEligibilityPage(JspPage):                 # paccaassure_taf.jsp
     frame: ClassVar[str] = "contentFrame"             # default frame for all elements
     member_id = TextInput(By.name("memberId"))
-    submit = Button(By.css("input[type=submit][value='Find']"), postback=True)  # waits for full reload
+    submit = Button(By.role("button", name="Find"), postback=True)  # waits for full reload
 
 class ClaimEntryScreen(DesktopScreen):                # paccaassure_taf.desktop
     window_title: ClassVar[str] = "Claim Entry"
@@ -99,8 +100,8 @@ class ClaimEntryScreen(DesktopScreen):                # paccaassure_taf.desktop
     save = Button(By.accessibility_id("Save"))
 
 class GetMember(Endpoint[None, Member]):              # paccaassure_taf.api
-    method = "GET"
-    path = "/api/v1/members/{member_id}"
+    method: ClassVar[HttpMethod] = HttpMethod.GET     # enum, never a raw string
+    path: ClassVar[str] = "/api/v1/members/{member_id}"
 
 class MemberApi(ApiClient):
     def get_member(self, member_id: MemberId) -> Member:
@@ -110,7 +111,7 @@ class MemberApi(ApiClient):
 
 ## 5. Data models
 ```python
-from paccaassure_taf.data import Sensitive, TestData, factory
+from paccaassure_taf.data import Sensitive, TestData, factory   # Sensitive is defined in core.masking, re-exported here
 
 MemberId = NewType("MemberId", str)
 
@@ -122,7 +123,9 @@ class Member(TestData):
     status: Status
 
 @factory(Member)
-def active_member(**overrides: Any) -> Member: ...   # synthetic, never real PHI
+def active_member(seed: int) -> Member: ...          # synthetic, never real PHI; deterministic per seed
+
+variant = active_member(seed=7).model_copy(update={"status": Status.TERMINATED})  # typed overrides, no Any
 
 # Profiles: data/profiles/<env>.yaml, typed by model, resolved by key
 member = world.data.get(Member, "active_adult")      # returns Member
@@ -160,20 +163,28 @@ Failure messages name the element (`MemberSearchPage.results`), the expectation,
 ```python
 from paccaassure_taf.bdd import given, when, then, World, Table
 
-@given("an {member:MemberRef} member exists")        # MemberRef parse type auto-registered
-def _(w: World, member: MemberRef) -> None:
+# northwind_claims/world.py — the app pack declares its scenario store once and exports an alias
+@dataclass
+class ClaimsScenario:
+    member: Member | None = None
+
+ClaimsWorld = World[ClaimsScenario]
+
+@given("an {member} member exists")                   # type comes from the annotation, not the pattern
+def _(w: ClaimsWorld, member: MemberRef) -> None:
     w.scenario.member = w.data.get(Member, member)
 
-@when("the {role:UserRole} searches for that member")
-def _(w: World, role: UserRole) -> None:
+@when("the {role} searches for that member")
+def _(w: ClaimsWorld, role: UserRole) -> None:
     w.flows(EligibilityFlows).login_as(role).search_member(w.scenario.member)
 
 @then("the results show")
-def _(w: World, table: Table[MemberRow]) -> None:     # Gherkin table → typed rows
+def _(w: ClaimsWorld, table: Table[MemberRow]) -> None:   # Gherkin table → typed rows
     expect(w.page(MemberSearchPage).results).to_contain_rows(table.rows)
 ```
-- `World` is a typed facade: `w.config`, `w.data`, `w.app` (web/jsp), `w.api(MemberApi)`, `w.desktop`, `w.db(name)`, `w.flows(T)`, `w.page(T)`, `w.evidence`, and `w.scenario` (a typed per-scenario store; products declare its schema as a dataclass).
-- Parse types come from annotations: any `StrEnum`, `NewType` id, `date`, `Decimal`, and registered types (`MemberRef`, `UserRole`). No manual `register_type`.
+- `World[S]` is a typed facade, generic over the scenario store `S`: `w.config`, `w.data`, `w.app` (web/jsp), `w.api(MemberApi)`, `w.desktop`, `w.db(name)`, `w.flows(T)`, `w.page(T)`, `w.evidence`, and `w.scenario: S` (a typed per-scenario store; each app pack declares its schema as a dataclass and exports an alias such as `ClaimsWorld`). How a variant suite combines stores from several app packs is finalized in Phase 2 (ADR-0002 amendment).
+- `w.evidence.record(name, value)` records a step **output** (e.g. a generated claim number) into `StepResult.outputs`; values pass through masking like everything else.
+- Parse types come from annotations: any `StrEnum`, `NewType` id, `date`, `Decimal`, and registered types (`MemberRef`, `UserRole`). Patterns use bare `{name}` placeholders; the type is taken from the parameter annotation (single source of truth). No manual `register_type`; `pataf lint steps` fails if a placeholder has no matching annotated parameter.
 - Duplicate or overlapping step patterns fail `pataf lint steps`.
 - Step phrasing follows the catalog's controlled vocabulary (docs/conventions).
 
@@ -185,10 +196,10 @@ Feature: Member eligibility search
     Given an active adult member exists
     When the eligibility worker searches for that member
     Then the results show
-      | Member ID     | Status |
-      | <member.id>   | Active |
+      | Member ID                  | Status |
+      | ${member.member_id}        | Active |
 ```
-Tag taxonomy is validated (conventions doc). `<member.id>` references scenario data, resolved by the typed table.
+Tag taxonomy is validated (conventions doc). `${member.member_id}` references scenario data (`w.scenario.member.member_id`), resolved by the typed table. The `${…}` syntax is deliberately distinct from Behave's Scenario Outline `<placeholder>` substitution, so both can be used in one feature.
 
 ## 10. What makes this AI-friendly (keep it that way)
 - Discoverability: everything is a class attribute or typed method, so the catalog generator can list it.

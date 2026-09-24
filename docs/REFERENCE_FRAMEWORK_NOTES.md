@@ -190,7 +190,8 @@ Decision key: **Keep idea** = re-implement the concept in PaccaAssureTAF style. 
 | Tests of the framework itself, typing, CI pipelines | Absent | `tests/`, mypy, `azure-pipelines.yml`, `pipelines/` | 0 |
 | `pataf doctor` environment checks | Absent | `runner` | 2+ |
 
-## 6. Proposed spec changes (proposals only; nothing changed yet)
+## 6. Proposed spec changes
+**Status (2026-09-24): all accepted in the Phase 0 review.** P1–P5 and P7–P9 are applied as spec edits. P6 is ADR-0013 (Proposed, build later). P5 is scheduled for Phase 4.
 | # | Idea from reference | Proposed change | Vehicle |
 |---|---|---|---|
 | P1 | `AUTH_FAILED` is a distinct triage class (`AIContext/05`, `06`) | Add `auth` to `FailureInfo.category` (REPORTING §1). It is additive, and the schema is not yet released. | Spec edit |

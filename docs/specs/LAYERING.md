@@ -18,13 +18,13 @@ Neutral terms, mapped per customer during onboarding (e.g. one customer's "produ
 src/northwind_claims/
   CLAUDE.md          # app context: modules, roles, URLs, quirks
   pages/ screens/ endpoints/ flows/ steps/ data/models.py data/factories.py
-  world.py           # ScenarioStore schema + World extensions
-  plugin.py          # entry points: parse types, auth provider, step registration
+  world.py           # ScenarioStore dataclass + `ClaimsWorld = World[ClaimsScenario]` alias
+  plugin.py          # entry points: parse types, auth provider, step registration, app config
+  pataf.app.yaml     # app defaults — package data, so it ships inside the wheel
   _ai/               # shipped context (generated)
-features/
-config/pataf.app.yaml
+features/            # the pack's own smoke/regression suite (run in the pack's CI; not shipped)
 ```
-Steps register through the `paccaassure_taf.plugins` entry point, so variant suites get them by installing the pack.
+Steps and the packaged `pataf.app.yaml` are discovered through the `paccaassure_taf.plugins` entry point, so variant suites get them just by installing the pack. (A `pataf.app.yaml` at the repo root would not be in the wheel.)
 
 ## Variant suite shape (example: `northwind-state-ga`)
 ```
@@ -56,7 +56,7 @@ class GaMemberSearchPage(MemberSearchPage):
 - `pataf lint overrides` flags overrides whose base surface changed in a newer app pack version.
 
 ## Config resolution order
-core defaults → `pataf.app.yaml` → `pataf.variant.yaml` → `envs/<env>.yaml` → `PATAF_*` env vars → CLI flags. `pataf config show --resolved` prints merged, masked config with each value's source.
+core defaults → each installed app pack's packaged `pataf.app.yaml` → `pataf.variant.yaml` → `envs/<env>.yaml` → `PATAF_*` env vars → CLI flags. `pataf config show --resolved` prints merged, masked config with each value's source.
 
 ## Result dimensions
 Every result carries `project`, `app`, `variant`, `env` from config, so history, trends and Power BI can slice by any tier.

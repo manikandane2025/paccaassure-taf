@@ -4,4 +4,4 @@ Add a framework (paccaassure-taf-core) capability: $ARGUMENTS
 2. Write a 5–10 line plan: public API, layer, plugin point, config keys, tests.
 3. Implement with mypy --strict; keep core product-agnostic.
 4. Add: unit tests, a sandbox scenario, docs/spec update, nested CLAUDE.md update, CHANGELOG entry, catalog regen.
-5. Run full checks: `uv run mypy src && uv run ruff check . && uv run lint-imports && uv run pytest tests/unit && uv run pataf lint && uv run pataf catalog --check`.
+5. Run full checks, one command per line (cross-shell): `uv run python scripts/dev.py check`, then `uv run pataf lint`, then `uv run pataf catalog --check` (the `pataf` commands exist from Phase 2).

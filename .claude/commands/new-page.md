@@ -6,4 +6,5 @@ Create a typed page/surface: $ARGUMENTS
 4. Declare elements as typed class attributes. Locator priority: role/label/test_id → name → css → xpath with `reason=`.
 5. Add intent-level methods (one surface each); navigation returns the next page type; docstring with example.
 6. Add or update a sandbox/example scenario that uses it.
-7. Run: `uv run mypy src && uv run ruff check . && uv run pataf lint && uv run pataf catalog`. Fix everything before finishing.
+7. Run, one command per line: `uv run python scripts/dev.py check`, then `uv run pataf lint`, then `uv run pataf catalog`. Fix everything before finishing.
+8. Keep assertions out of the page: expose state; steps/flows assert with `expect`.
