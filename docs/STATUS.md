@@ -48,7 +48,8 @@ Planned commits:
 Stop at Checkpoint 2: report `docker compose up --wait` health + one smoke probe per app.
 
 ## Environment quirks (this dev machine)
-- **uv PATH:** winget install at `%LOCALAPPDATA%MicrosoftWinGetPackagesstral-sh.uv_…V.exe`. The VS Code-inherited PATH predated it, so shims `C:SERSMANIKANDANEBINV` (BASH) AND `UV.CMD` (CMD/POWERSHELL) FORWARD TO IT (CREATED 2026-09-24).
+- **uv PATH:** winget install at `%LOCALAPPDATA%\Microsoft\WinGet\Packages\astral-sh.uv_…\uv.exe`. The VS Code-inherited PATH predated it, so shims `C:\Users\manikandane\bin\uv` (bash) and `uv.cmd` (cmd/PowerShell) forward to it (created 2026-09-24).
+- Don't use `sed` replacements containing Windows paths (`\U`, `\a` are escapes there); use the Edit tool.
 - **Blocked `.exe` launchers:** endpoint security blocks unsigned console-script launchers in `.venv\Scripts` and pre-commit's cache ("Access is denied"). Always `python -m …` / `python -c …`. `ruff.exe` (signed) works.
 - **PowerShell 5.1** is the user's shell: no `&&`. All documented commands are cross-shell.
 - `core.autocrlf=true` globally; `.gitattributes` keeps the repo LF.
