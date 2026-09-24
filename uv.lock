@@ -1665,7 +1665,7 @@ requires-dist = [
     { name = "pg8000", marker = "extra == 'history-postgres'", specifier = ">=1.31,<2" },
     { name = "playwright", specifier = ">=1.50,<2" },
     { name = "pyarrow", marker = "extra == 'export-parquet'", specifier = ">=18,<26" },
-    { name = "pydantic", specifier = ">=2.10,<3" },
+    { name = "pydantic", specifier = ">=2.11,<3" },
     { name = "pymysql", marker = "extra == 'db-mysql'", specifier = ">=1.1,<2" },
     { name = "pyodbc", marker = "extra == 'db-mssql'", specifier = ">=5.2,<6" },
     { name = "pyodbc", marker = "extra == 'history-mssql'", specifier = ">=5.2,<6" },
@@ -1673,7 +1673,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.2,<7" },
     { name = "sqlalchemy", specifier = ">=2.0.36,<3" },
     { name = "structlog", specifier = ">=25.1,<27" },
-    { name = "typer", specifier = ">=0.15,<1" },
+    { name = "typer", specifier = ">=0.26,<1" },
 ]
 provides-extras = ["desktop", "jsp", "db-oracle", "db-mssql", "db-mysql", "db-postgres", "history-postgres", "history-mssql", "secrets-azure", "secrets-hcv", "api-contract", "files", "export-parquet", "sinks-ado", "sinks-jira", "sinks-powerbi", "sinks-teams", "evidence-blob"]
 
