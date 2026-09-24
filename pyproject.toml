@@ -55,6 +55,10 @@ sinks-powerbi = ["msal>=1.31,<2"]
 sinks-teams = []
 evidence-blob = ["azure-storage-blob>=12.24,<13", "azure-identity>=1.19,<2"]
 
+[project.scripts]
+# Also runnable as `python -m paccaassure_taf` (locked-down endpoints block the .exe launcher).
+pataf = "paccaassure_taf.runner.cli:main"
+
 [project.entry-points."paccaassure_taf.plugins"]
 # Loaded only when a kv:// reference is resolved; needs the secrets-azure extra at that point.
 "secret_provider.kv" = "paccaassure_taf.core.secrets_azure:KeyVaultSecretProvider"

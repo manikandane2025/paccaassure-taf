@@ -104,7 +104,10 @@ class ResolvedConfig:
         return (not self.ci) if configured is None else configured
 
     def source_of(self, key: str) -> str:
-        """Return the layer that set dotted ``key`` (or its nearest parent), else ``default``.
+        """Return the layer that set dotted ``key``, else ``default``.
+
+        A leaf inherits from its nearest parent (a scalar or list replaced wholesale); a section is
+        attributed to the layers that set its values (joined with ``+`` if several).
 
         Example:
             >>> load_config(Path("."), environ={}).source_of("logging.level")
@@ -115,7 +118,8 @@ class ResolvedConfig:
             source = self.sources.get(".".join(parts[:size]))
             if source is not None:
                 return source
-        return "default"
+        children = {source for dotted, source in self.sources.items() if dotted.startswith(f"{key}.")}
+        return " + ".join(sorted(children)) if children else "default"
 
     def entries(self) -> list[ConfigEntry]:
         """Every resolved leaf value, masked, with its source — for ``pataf config show --resolved``.
@@ -275,12 +279,14 @@ def _merge(base: _Tree, update: _Tree, source: str, sources: dict[str, str], *, 
         for stale in [k for k in sources if k.startswith(f"{dotted}.")]:
             del sources[stale]
         if isinstance(value, dict):
+            # A new section: only its leaves get a source, so untouched siblings keep "default".
             child: _Tree = {}
             base[key] = child
+            sources.pop(dotted, None)
             _merge(child, value, source, sources, prefix=f"{dotted}.")
         else:
             base[key] = value
-        sources[dotted] = source
+            sources[dotted] = source
 
 
 def _flatten(data: object, prefix: str = "") -> dict[str, object]:
@@ -312,7 +318,8 @@ def _validate(merged: _Tree, sources: Mapping[str, str]) -> PatafConfig:
             problems.append(f"{key}: {masker.scrub(message)} (set by {resolved.source_of(key)})")
         raise ConfigError(
             f"Invalid configuration ({len(problems)} problem{'s' if len(problems) > 1 else ''})",
-            cause="\n    - " + "\n    - ".join(problems),
+            cause=f"{len(problems)} invalid setting{'s' if len(problems) > 1 else ''}:\n    - "
+            + "\n    - ".join(problems),
             fix="Correct the values above in the named layer; `pataf config show --resolved` lists "
             "every value and its source.",
         ) from error

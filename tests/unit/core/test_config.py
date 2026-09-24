@@ -201,3 +201,23 @@ def test_is_ci(environ: dict[str, str], expected: bool) -> None:
 def test_process_environment_is_a_snapshot() -> None:
     snapshot = process_environment()
     assert isinstance(snapshot, dict)
+
+
+def test_new_section_from_a_later_layer_does_not_claim_its_siblings(tmp_path: Path) -> None:
+    resolved = load_config(tmp_path, overrides={"wait.timeout_s": "5"}, environ={})
+    assert resolved.source_of("wait.timeout_s") == "cli"
+    assert resolved.source_of("wait.interval_s") == "default"
+
+
+def test_json_object_env_var_merges_into_section(tmp_path: Path) -> None:
+    _write(tmp_path / "pataf.variant.yaml", "masking:\n  mask: '[x]'\n")
+    resolved = load_config(tmp_path, environ={"PATAF_MASKING": '{"extra_patterns": ["a+"]}'})
+    assert resolved.config.masking.extra_patterns == ["a+"]
+    assert resolved.source_of("masking.extra_patterns") == "env PATAF_MASKING"
+    assert resolved.source_of("masking.mask") == "pataf.variant.yaml"
+
+
+def test_section_source_is_the_layers_that_set_its_values(suite: Path) -> None:
+    resolved = load_config(suite, env="qa", environ={})
+    assert resolved.source_of("logging") == "envs/qa.yaml + pataf.variant.yaml"
+    assert resolved.source_of("secrets") == "default"
