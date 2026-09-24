@@ -19,6 +19,7 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - `By`, typed elements (emit sub-action events), `expect`, `WebPage`/`WebComponent`, `Table[T]`.
 - `paccaassure_taf.bdd`: typed decorators, `World[S]` (finalize the multi-pack scenario-store combination rule; amend ADR-0002), annotation-driven parse types, `Table[Model]` with `${…}` scenario references, hooks writing events, `w.evidence.record` → `StepResult.outputs`.
 - Runner v1: `pataf run`, `--dry-run`, tags, env; `summary.md/json`.
+- `pataf doctor` v1 scope: Python/uv versions, Playwright browsers installed for the pinned version, config resolves, license file, and **locked-down endpoint detection** — try launching a console-script `.exe` from the environment's scripts dir vs. `python -m`; on "Access is denied" report "unsigned launchers blocked by endpoint policy; use `python -m` entry points" (see customer-onboarding TEMPLATE, "Locked-down Windows endpoints").
 - ✅ 10 sandbox web scenarios produce valid `run.json` (schema-validated); wrong element action fails mypy (should-fail test); dry-run resolves all steps.
 
 ## Phase 3 — Report UI v1

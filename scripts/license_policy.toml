@@ -1,4 +1,4 @@
-# Third-party license policy (ADR-0010 + amendment 1). Checked by scripts/check_licenses.py.
+# Third-party license policy (ADR-0010 + amendments 1-2). Checked by scripts/check_licenses.py.
 #
 # A distribution passes if its license (SPDX expression, License field or trove
 # classifiers, in that order of preference) evaluates to allowed:
@@ -16,6 +16,8 @@ allowed = [
     "PSF-2.0",
     "Python-2.0",
     "MPL-2.0",
+    "ISC",           # ADR-0010 amendment 2: OSI-approved permissive, MIT-equivalent
+    "0BSD",          # ADR-0010 amendment 2: OSI-approved permissive, public-domain-equivalent
 ]
 
 # Our own proprietary distribution is not a third-party dependency.
@@ -25,8 +27,3 @@ skip = ["paccaassure-taf-core"]
 # license = the SPDX expression we verified manually; it is still evaluated against `allowed`
 # unless `approved = true` (explicit, reviewed exception to the allow-list).
 [exceptions]
-
-[exceptions.shellingham]
-license = "ISC"
-approved = true
-reason = "Required runtime dependency of typer (CLI). ISC is a permissive MIT/BSD-2-equivalent license with no copyleft; pending decision whether to add ISC to the allow-list (Phase 0 checkpoint 1)."

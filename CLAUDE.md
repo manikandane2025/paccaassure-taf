@@ -30,12 +30,13 @@ Build a **commercial, customer-agnostic** test automation product that we licens
 ## Stack (non-negotiable unless an ADR changes it)
 - Python 3.12+, uv, Behave, Playwright (sync API), Appium 2 + Appium-Python-Client, httpx, pydantic v2 + pydantic-settings, SQLAlchemy 2 + Alembic (history store), python-oracledb / PyMySQL / pyodbc / pg8000, structlog, Typer, pytest (framework unit tests only), mypy `--strict`, ruff, import-linter, pre-commit, copier, Docker.
 - Report UI: TypeScript + Vite, built to a **single self-contained HTML template**. Its types are generated from the Python result models.
-- **Every dependency must carry a commercial-friendly license** (MIT/BSD/Apache-2.0/PSF/MPL-2.0; an SPDX `OR` expression passes if any option is allowed). No GPL/AGPL/LGPL. This is enforced in CI (ADR-0010).
+- **Every dependency must carry a commercial-friendly license** (MIT/BSD/ISC/0BSD/Apache-2.0/PSF/MPL-2.0; an SPDX `OR` expression passes if any option is allowed). No GPL/AGPL/LGPL. This is enforced in CI (ADR-0010).
 - **Tool-agnostic CI** (ADR-0014): every check is a `scripts/dev.py` task; CI YAML (GitHub Actions first) only calls those tasks.
 
 ## Where things are
 | Need | Read |
 |---|---|
+| **Current status and next steps** | `docs/STATUS.md` (read first in every new session) |
 | Product principles, licensing, packaging, white-label | `docs/PRODUCT.md` |
 | Layers, packages, dependency rules | `docs/architecture/ARCHITECTURE.md` |
 | Why a decision was made | `docs/architecture/adr/` |

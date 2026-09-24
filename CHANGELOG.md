@@ -18,6 +18,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versioning: [S
 - `scripts/dev.py` cross-shell task runner: lint, format, typecheck, imports, test, licenses, audit, hooks, secrets.
 - pre-commit (all local hooks, gitleaks via Docker) and a per-file Claude Code PostToolUse hook.
 - GitHub Actions CI as a thin adapter over `dev.py`: checks, unit-test matrix (Linux/Windows × 3.12/3.13), lowest-direct floors, licenses + vulnerability audit.
+- `docs/STATUS.md` session handoff; locked-down Windows endpoint guidance in the customer onboarding template.
 
 ### Changed
+- License allow-list adds ISC and 0BSD (ADR-0010 amendment 2); `shellingham` exception removed.
 - Specs updated after the Phase 0 review: import-linter contracts, `World[S]`, exit codes decided by the gate, pg8000 for PostgreSQL, SPDX-aware license policy, `StepResult.outputs`, `FailureInfo.category = auth`, `@risk` tag, cross-shell commands.
