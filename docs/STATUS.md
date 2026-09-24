@@ -2,9 +2,9 @@
 
 > Read first in every new session. Keep under 80 lines. Update at every checkpoint.
 
-**Phase:** 0 — Harvest and skeleton. **Checkpoint 1 done; Checkpoint 2 (sandbox) next.**
-**Branch:** `feature/phase-0-skeleton` (from `develop`; pushed to `origin`). Last checkpoint commit: `ae571db` (CI); this handoff commit follows it — see `git log -1`.
-**Open:** no PR yet. CI runs only on push to `main`/`develop` or PRs into them, so it has **not run on GitHub yet**. Open a draft PR `feature/phase-0-skeleton → develop` to trigger it (ask the user first).
+**Phase:** 1 — Core, **in progress** (user decision 2026-09-24: Phase 1 before the sandbox; sandbox must finish before Phase 2 — BUILD_PLAN).
+**Branch:** `feature/phase-1-core`, stacked on `feature/phase-0-skeleton` (pushed; Phase 0 last commit `da9ccbd`). See `git log` for Phase 1 progress.
+**CI is last priority (user):** it has not run on GitHub (no PR yet). Don't spend effort on it until asked.
 
 ## Checkpoint 1 results (all local, Windows, Python 3.12.3)
 | Task (`uv run python scripts/dev.py <task>`) | Result |
@@ -48,7 +48,7 @@ Planned commits:
 Stop at Checkpoint 2: report `docker compose up --wait` health + one smoke probe per app.
 
 ## Environment quirks (this dev machine)
-- **uv PATH:** installed via winget at `%LOCALAPPDATA%\Microsoft\WinGet\Packages\astral-sh.uv_…\uv.exe`. If the agent's shell can't see `uv` after a full VS Code exit, create a shim in `C:\Users\manikandane\bin` (already first on the inherited PATH).
+- **uv PATH:** winget install at `%LOCALAPPDATA%MicrosoftWinGetPackagesstral-sh.uv_…V.exe`. The VS Code-inherited PATH predated it, so shims `C:SERSMANIKANDANEBINV` (BASH) AND `UV.CMD` (CMD/POWERSHELL) FORWARD TO IT (CREATED 2026-09-24).
 - **Blocked `.exe` launchers:** endpoint security blocks unsigned console-script launchers in `.venv\Scripts` and pre-commit's cache ("Access is denied"). Always `python -m …` / `python -c …`. `ruff.exe` (signed) works.
 - **PowerShell 5.1** is the user's shell: no `&&`. All documented commands are cross-shell.
 - `core.autocrlf=true` globally; `.gitattributes` keeps the repo LF.

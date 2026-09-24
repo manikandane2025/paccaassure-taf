@@ -8,9 +8,11 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - Unit tests: a package import smoke test (every package imports, has a docstring and `__all__`), so the unit job has real tests from day one.
 - `sandbox/compose.yaml` (Northwind Health, synthetic data): web app (FastAPI-backed Vite+Preact SPA behind nginx: login, search, table, detail, form), Tomcat 9 JSP app (frameset, postback form with Struts-style token, popup, generated-id table), FastAPI JSON API with OpenAPI, Postgres 16 with separate `northwind` (app data) and `pataf_history` DBs. Sandbox Python uses ruff + standard mypy (not `--strict`).
 - ✅ mypy, ruff, lint-imports, license check pass; sandbox apps serve.
+- **Sequencing decision (2026-09-24):** the sandbox item moved after Phase 1. Phase 1 is pure Python with unit tests only (hard-rule-10 exemption), so it has no sandbox dependency; the sandbox **must** be complete before Phase 2 starts (Phase 2 acceptance needs 10 sandbox web scenarios). All other Phase 0 items are done (Checkpoint 1, `docs/STATUS.md`). CI green on GitHub is last priority.
 
 ## Phase 1 — Core
 - Layered typed config + `pataf config show`; SecretRef + env/Key Vault providers; structlog with masking; `Sensitive[T]` (in `core.masking`); errors; `wait.until`; plugin registry (incl. `ConnectionProvider`); license verification module (entry-point only, test keys).
+- `pataf` must also run as `python -m paccaassure_taf` (locked-down endpoints block the `pataf.exe` launcher).
 - Exemption from hard rule 10: no runner exists yet, so Phase 1 features ship unit tests, docs and CHANGELOG but no sandbox e2e scenario or catalog regen.
 - ✅ ≥ 90% unit coverage on core; masking proven; actionable config errors; expired license degrades gracefully.
 
