@@ -144,7 +144,7 @@ ban-relative-imports = "all"
 [tool.ruff.lint.per-file-ignores]
 "src/paccaassure_taf/core/config/**" = ["TID251"]   # the one place allowed to read the environment
 "scripts/**" = ["T201", "S603", "S607", "TID251"]   # dev task runner: prints, runs tools, passes env through
-"tests/**" = ["S101", "S603", "D", "PLR2004", "PLC2701"]
+"tests/**" = ["S101", "S105", "S106", "S603", "D", "PLR2004", "PLC2701"]  # S105/S106: fake credentials prove masking
 "stubs/**" = ["D", "N", "ANN401"]
 "sandbox/**" = ["D", "T201", "S104"]
 
