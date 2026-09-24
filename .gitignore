@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.python-build/
+
+# Tool caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.import_linter_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
+# PaccaAssureTAF run output (never committed; CI publishes it as artifacts).
+# Anchored to the repo root: unanchored patterns would also hide the source
+# packages src/paccaassure_taf/results/ and src/paccaassure_taf/evidence/.
+/results/
+/reports/
+/evidence/
+*.log
+
+# Local secrets and env
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+/secrets/
+
+# Node (report-ui, sandbox web)
+node_modules/
+report-ui/dist/
+sandbox/web/dist/
+
+# Java (sandbox JSP)
+sandbox/jsp/target/
+
+# Local data stores
+*.db
+*.sqlite
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Claude Code local settings
+.claude/settings.local.json
