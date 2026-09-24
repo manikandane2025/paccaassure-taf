@@ -1633,7 +1633,6 @@ sinks-powerbi = [
 [package.dev-dependencies]
 dev = [
     { name = "import-linter" },
-    { name = "license-expression" },
     { name = "mypy" },
     { name = "pip-audit" },
     { name = "pre-commit" },
@@ -1680,7 +1679,6 @@ provides-extras = ["desktop", "jsp", "db-oracle", "db-mssql", "db-mysql", "db-po
 [package.metadata.requires-dev]
 dev = [
     { name = "import-linter", specifier = ">=2.15,<3" },
-    { name = "license-expression", specifier = ">=30.4,<31" },
     { name = "mypy", specifier = ">=2.3,<3" },
     { name = "pip-audit", specifier = ">=2.9,<3" },
     { name = "pre-commit", specifier = ">=4,<5" },

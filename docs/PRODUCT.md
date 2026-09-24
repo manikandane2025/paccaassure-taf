@@ -31,7 +31,7 @@ PaccaAssureTAF is sold to multiple enterprise customers. Every design choice is 
 - An offline-verifiable signed license file (Ed25519) includes customer, expiry, seats or agents, and entitled features (e.g. `desktop`, `history`, `sinks.powerbi`).
 - Checks happen **only at CLI entry points** (run start, report build, sink publish). They never happen mid-scenario, and they never phone home.
 - When a license expires: tests still run, but a banner appears in reports and entitled extras degrade gracefully. We never break a customer's release pipeline without warning.
-- Third-party license compliance: `pip-licenses` and `license-checker` (npm) run in CI with an allow-list. An SBOM (CycloneDX) is produced per release.
+- Third-party license compliance: an SPDX-aware allow-list check (`scripts/check_licenses.py`, policy in `scripts/license_policy.toml`) for Python and `license-checker` (npm, from Phase 3) run in CI. An SBOM (CycloneDX) is produced per release.
 
 ## 4. White-label and branding
 - The report theme is configurable per customer: logo, product name, colors, and footer. It is set in config and embedded at build time.

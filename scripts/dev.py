@@ -13,6 +13,7 @@ Example:
 from __future__ import annotations
 
 import argparse
+import os
 import subprocess
 import sys
 import sysconfig
@@ -99,6 +100,23 @@ def _test() -> list[list[str]]:
     return [python_module("pytest", "tests/unit")]
 
 
+def _licenses() -> list[list[str]]:
+    # Run after `uv sync --all-extras` so every extra and dev tool is inspected.
+    return [[sys.executable, str(REPO_ROOT / "scripts" / "check_licenses.py")]]
+
+
+def _audit() -> list[list[str]]:
+    # Audit the locked, fully pinned dependency set (all extras) without needing pip in the venv.
+    requirements = REPO_ROOT / ".pataf-audit-requirements.txt"
+    uv = os.environ.get("UV", "uv")  # `uv run` exports UV=<path to uv>
+    return [
+        [uv, "export", "--frozen", "--all-extras", "--no-emit-project", "--quiet",
+         "--output-file", str(requirements)],
+        python_module("pip_audit", "--requirement", str(requirements), "--disable-pip",
+                      "--progress-spinner", "off"),
+    ]  # fmt: skip
+
+
 TASKS: dict[str, Task] = {
     task.name: task
     for task in (
@@ -108,6 +126,8 @@ TASKS: dict[str, Task] = {
         Task("typecheck", "mypy --strict (config in pyproject.toml)", _typecheck),
         Task("imports", "import-linter layer contracts (ARCHITECTURE §3)", _imports),
         Task("test", "unit tests", _test),
+        Task("licenses", "third-party license allow-list (ADR-0010)", _licenses),
+        Task("audit", "known-vulnerability audit of locked deps (network)", _audit),
     )
 }
 
