@@ -22,6 +22,7 @@ from paccaassure_taf import __version__
 from paccaassure_taf.core.config import load_config
 from paccaassure_taf.core.errors import PatafError
 from paccaassure_taf.core.masking import default_masker
+from paccaassure_taf.core.runtime import apply_config
 
 __all__ = ["app", "main"]
 
@@ -86,6 +87,7 @@ def config_show(
 ) -> None:
     """Show the merged, validated configuration (secrets are references; sensitive values masked)."""
     config = load_config(root, env=env, overrides=_parse_overrides(set_ or []))
+    apply_config(config)  # masking + logging from config take effect before any output
     if resolved:
         typer.echo(config.render())
     else:

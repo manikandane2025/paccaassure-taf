@@ -166,6 +166,25 @@ class Masker:
         self._values_regex: re.Pattern[str] | None = None
         self._lock = threading.Lock()
 
+    def configure(self, *, extra_patterns: Iterable[str] = (), mask: str | None = None) -> None:
+        """Apply configuration (``masking:`` section) to this masker. Idempotent.
+
+        Args:
+            extra_patterns: Additional regexes to mask everywhere (duplicates are ignored).
+            mask: New replacement text, if given.
+
+        Example:
+            >>> m = Masker()
+            >>> m.configure(extra_patterns=["NWH-M[0-9]{6}"], mask="[masked]")
+            >>> m.scrub("member NWH-M000123")
+            'member [masked]'
+        """
+        with self._lock:
+            known = {p.pattern for p in self._patterns}
+            self._patterns.extend(re.compile(p) for p in dict.fromkeys(extra_patterns) if p not in known)
+            if mask is not None:
+                self.mask_text = mask
+
     def register(self, value: str) -> None:
         """Remember a sensitive literal (e.g. a resolved secret) so it is scrubbed from all text.
 

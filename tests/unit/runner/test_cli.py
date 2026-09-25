@@ -84,3 +84,16 @@ def test_python_dash_m_entry_point_works() -> None:
     )
     assert completed.returncode == 0, completed.stderr
     assert completed.stdout.strip() == f"paccaassure-taf-core {__version__}"
+
+
+def test_config_show_applies_masking_config_at_startup(suite: Path) -> None:
+    from paccaassure_taf.core.masking import default_masker  # noqa: PLC0415
+
+    try:
+        result = runner.invoke(
+            app, ["config", "show", "--root", str(suite), "--set", 'masking.extra_patterns=["northwind"]']
+        )
+        assert result.exit_code == 0, result.output
+        assert json.loads(result.output)["project"] == "***"  # the configured pattern masked the output
+    finally:
+        default_masker.cache_clear()  # the CLI configures the process-wide masker
