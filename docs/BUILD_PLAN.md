@@ -9,6 +9,7 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - `sandbox/compose.yaml` (Northwind Health, synthetic data): web app (FastAPI-backed Vite+Preact SPA behind nginx: login, search, table, detail, form), Tomcat 9 JSP app (frameset, postback form with Struts-style token, popup, generated-id table), FastAPI JSON API with OpenAPI, Postgres 16 with separate `northwind` (app data) and `pataf_history` DBs. Sandbox Python uses ruff + standard mypy (not `--strict`).
 - ✅ mypy, ruff, lint-imports, license check pass; sandbox apps serve.
 - **Sequencing decision (2026-09-24):** the sandbox item moved after Phase 1. Phase 1 is pure Python with unit tests only (hard-rule-10 exemption), so it has no sandbox dependency; the sandbox **must** be complete before Phase 2 starts (Phase 2 acceptance needs 10 sandbox web scenarios). All other Phase 0 items are done (Checkpoint 1, `docs/STATUS.md`). CI green on GitHub is last priority.
+- **Sandbox split (2026-09-25):** build now only what Phases 2–5 need — Postgres seed (`northwind` + `pataf_history`), the JSON API, the web app, and `dev.py` sandbox tasks. The **Tomcat JSP app moved to the Phase 6 prerequisites** (below).
 
 ## Phase 1 — Core
 - Layered typed config + `pataf config show`; SecretRef + env/Key Vault providers; structlog with masking; `Sensitive[T]` (in `core.masking`); errors; `wait.until`; plugin registry (incl. `ConnectionProvider`); license verification module (entry-point only, test keys).
@@ -40,6 +41,7 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - ✅ 30 synthetic runs ingested; trends, flaky, new/regressed/fixed correct against fixtures in both SQL and Python; gates drive exit codes.
 
 ## Phase 6 — JSP driver
+- **Prerequisite (moved from Phase 0):** sandbox Tomcat 9 JSP app (Maven inside multi-stage Docker): login + JSESSIONID + short session timeout, frameset `top>nav|content` + nested iframe, postback form with Struts-named TOKEN + CSRF token (reuse → error page), ISO-8859-1 page, table with `j_idN:form:j_idM` ids regenerated per request, popup that writes back to its opener, `alert`/`confirm`, a plain servlet for `ServletClient` posts; reads the shared `northwind` DB via JDBC.
 - Frames, postback, session recovery, popups, `ServletClient` with token extraction, locator lint.
 - ✅ JSP sandbox scenarios pass including frameset + token form + popup.
 
