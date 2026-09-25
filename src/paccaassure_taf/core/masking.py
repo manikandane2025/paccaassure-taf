@@ -15,6 +15,7 @@ Example:
 
 import re
 import threading
+from collections import OrderedDict
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -27,6 +28,7 @@ from typing import Annotated, Final, TypeVar
 from pydantic import BaseModel, SecretBytes, SecretStr
 
 __all__ = [
+    "DEFAULT_MAX_LEARNED_VALUES",
     "DEFAULT_PATTERNS",
     "DEFAULT_SENSITIVE_KEYS",
     "MASK",
@@ -45,6 +47,7 @@ type JsonValue = str | int | float | bool | list[JsonValue] | dict[str, JsonValu
 """A JSON-serializable value — the output type of :meth:`Masker.mask`."""
 
 MASK: Final = "***"
+DEFAULT_MAX_LEARNED_VALUES: Final = 10_000
 
 
 class SensitiveCategory(StrEnum):
@@ -142,6 +145,8 @@ class Masker:
         mask: Replacement text.
         min_value_length: Registered values shorter than this are not scrubbed from text
             (avoids masking every "a" or "1" in a log line).
+        max_learned_values: Bound on values learned from ``Sensitive`` fields (oldest evicted first).
+            Pinned values (secrets, explicit registrations) are never evicted.
 
     Example:
         >>> masker = Masker()
@@ -157,21 +162,43 @@ class Masker:
         sensitive_keys: Iterable[str] = DEFAULT_SENSITIVE_KEYS,
         mask: str = MASK,
         min_value_length: int = 4,
+        max_learned_values: int = DEFAULT_MAX_LEARNED_VALUES,
     ) -> None:
         self.mask_text = mask
         self._patterns = [re.compile(p) for p in patterns]
         self._sensitive_keys = frozenset(k.lower() for k in sensitive_keys)
         self._min_value_length = min_value_length
-        self._values: set[str] = set()
+        self._max_learned = max_learned_values
+        self._pinned: set[str] = set()  # secrets / explicit registrations: never evicted
+        self._learned: OrderedDict[str, None] = (
+            OrderedDict()
+        )  # from Sensitive fields: bounded, oldest first out
         self._values_regex: re.Pattern[str] | None = None
         self._lock = threading.Lock()
 
-    def configure(self, *, extra_patterns: Iterable[str] = (), mask: str | None = None) -> None:
+    @property
+    def learned_count(self) -> int:
+        """Number of learned (evictable) values currently scrubbed.
+
+        Example:
+            >>> Masker().learned_count
+            0
+        """
+        return len(self._learned)
+
+    def configure(
+        self,
+        *,
+        extra_patterns: Iterable[str] = (),
+        mask: str | None = None,
+        max_learned_values: int | None = None,
+    ) -> None:
         """Apply configuration (``masking:`` section) to this masker. Idempotent.
 
         Args:
             extra_patterns: Additional regexes to mask everywhere (duplicates are ignored).
             mask: New replacement text, if given.
+            max_learned_values: New bound for learned values; excess values are evicted oldest first.
 
         Example:
             >>> m = Masker()
@@ -184,9 +211,19 @@ class Masker:
             self._patterns.extend(re.compile(p) for p in dict.fromkeys(extra_patterns) if p not in known)
             if mask is not None:
                 self.mask_text = mask
+            if max_learned_values is not None:
+                self._max_learned = max_learned_values
+                if self._evict():
+                    self._rebuild()
 
-    def register(self, value: str) -> None:
-        """Remember a sensitive literal (e.g. a resolved secret) so it is scrubbed from all text.
+    def register(self, value: str, *, pinned: bool = True) -> None:
+        """Remember a sensitive literal so it is scrubbed from all text.
+
+        Args:
+            value: The literal (values shorter than ``min_value_length`` are ignored).
+            pinned: True (default) for secrets and explicit registrations — never evicted.
+                False for values learned from ``Sensitive`` fields — bounded by
+                ``max_learned_values``; the oldest is evicted first, and re-seeing a value refreshes it.
 
         Example:
             >>> m = Masker()
@@ -197,10 +234,33 @@ class Masker:
         if len(value) < self._min_value_length:
             return
         with self._lock:
-            if value not in self._values:
-                self._values.add(value)
-                ordered = sorted(self._values, key=len, reverse=True)  # longest first: no partial leftovers
-                self._values_regex = re.compile("|".join(re.escape(v) for v in ordered))
+            if value in self._pinned:
+                return
+            if pinned:
+                self._learned.pop(value, None)
+                self._pinned.add(value)
+                self._rebuild()
+            elif value in self._learned:
+                self._learned.move_to_end(value)  # refresh: same set of values, no rebuild needed
+            else:
+                self._learned[value] = None
+                self._evict()
+                self._rebuild()
+
+    def _evict(self) -> bool:
+        evicted = False
+        while len(self._learned) > self._max_learned:
+            self._learned.popitem(last=False)
+            evicted = True
+        return evicted
+
+    def _rebuild(self) -> None:
+        values = self._pinned.union(self._learned)
+        if not values:
+            self._values_regex = None
+            return
+        ordered = sorted(values, key=len, reverse=True)  # longest first: no partial leftovers
+        self._values_regex = re.compile("|".join(re.escape(v) for v in ordered))
 
     def scrub(self, text: str) -> str:
         """Mask registered values, known patterns and Luhn-valid card numbers in free text.
@@ -276,11 +336,11 @@ class Masker:
 
     def _learn(self, value: object) -> None:
         if isinstance(value, SecretStr):
-            self.register(value.get_secret_value())
+            self.register(value.get_secret_value())  # a secret: pinned
         elif isinstance(value, datetime | date | time):
-            self.register(value.isoformat())
+            self.register(value.isoformat(), pinned=False)
         elif isinstance(value, str | int | Decimal):
-            self.register(str(value))
+            self.register(str(value), pinned=False)
 
 
 @cache

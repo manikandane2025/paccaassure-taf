@@ -13,10 +13,10 @@ import re
 from pathlib import Path
 from typing import Annotated
 
-from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, field_validator
+from pydantic import BaseModel, ConfigDict, Field, PositiveFloat, PositiveInt, field_validator
 
 from paccaassure_taf.core.log import LogFormat, LogLevel
-from paccaassure_taf.core.masking import MASK
+from paccaassure_taf.core.masking import DEFAULT_MAX_LEARNED_VALUES, MASK
 from paccaassure_taf.core.secrets import SecretRef
 
 __all__ = [
@@ -71,6 +71,7 @@ class MaskingConfig(_Section):
 
     mask: str = Field(default=MASK, min_length=1)
     extra_patterns: list[str] = Field(default_factory=list)
+    max_learned_values: PositiveInt = DEFAULT_MAX_LEARNED_VALUES
 
     @field_validator("extra_patterns")
     @classmethod

@@ -41,6 +41,10 @@ def apply_config(
     """
     config = resolved.config
     target = masker or default_masker()
-    target.configure(extra_patterns=config.masking.extra_patterns, mask=config.masking.mask)
+    target.configure(
+        extra_patterns=config.masking.extra_patterns,
+        mask=config.masking.mask,
+        max_learned_values=config.masking.max_learned_values,
+    )
     configure_logging(level=config.logging.level, fmt=config.logging.format, stream=log_stream, masker=target)
     return target

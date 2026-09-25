@@ -167,3 +167,56 @@ def test_learns_secret_str_and_numbers() -> None:
 
 def test_default_masker_is_shared() -> None:
     assert default_masker() is default_masker()
+
+
+def test_learned_values_are_bounded_oldest_first() -> None:
+    masker = Masker(max_learned_values=2)
+    for value in ("value-one", "value-two", "value-three"):
+        masker.register(value, pinned=False)
+    assert masker.learned_count == 2
+    assert masker.scrub("value-one value-two value-three") == "value-one *** ***"
+
+
+def test_reseeing_a_learned_value_refreshes_it() -> None:
+    masker = Masker(max_learned_values=2)
+    masker.register("value-one", pinned=False)
+    masker.register("value-two", pinned=False)
+    masker.register("value-one", pinned=False)  # refresh: value-two is now the oldest
+    masker.register("value-three", pinned=False)
+    assert masker.scrub("value-one value-two value-three") == "*** value-two ***"
+
+
+def test_pinned_secrets_are_never_evicted() -> None:
+    masker = Masker(max_learned_values=1)
+    masker.register("pw-Northwind-pinned")
+    for index in range(50):
+        masker.register(f"learned-{index:03d}", pinned=False)
+    masker.register("pw-Northwind-pinned", pinned=False)  # already pinned: stays pinned
+    assert masker.learned_count == 1
+    assert masker.scrub("pw-Northwind-pinned learned-049 learned-000") == "*** *** learned-000"
+
+
+def test_pinning_a_learned_value_moves_it_out_of_the_bounded_set() -> None:
+    masker = Masker(max_learned_values=5)
+    masker.register("value-one", pinned=False)
+    masker.register("value-one")
+    assert masker.learned_count == 0
+    assert masker.scrub("value-one") == "***"
+
+
+def test_sensitive_fields_are_learned_evictable_but_secret_str_is_pinned(member: Member) -> None:
+    masker = Masker(max_learned_values=1)
+    masker.mask(member)  # learns first_name, dob, street (bounded to 1); pins the SecretStr password
+    assert masker.learned_count == 1
+    assert masker.scrub("pw-Northwind-1") == "***"
+
+
+def test_configure_can_shrink_the_bound() -> None:
+    masker = Masker()
+    for index in range(10):
+        masker.register(f"learned-{index:03d}", pinned=False)
+    masker.configure(max_learned_values=3)
+    assert masker.learned_count == 3
+    assert masker.scrub("learned-006 learned-007") == "learned-006 ***"
+    masker.configure(max_learned_values=0)
+    assert masker.scrub("learned-009") == "learned-009"

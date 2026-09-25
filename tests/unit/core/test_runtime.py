@@ -63,3 +63,11 @@ def test_apply_config_is_idempotent(tmp_path: Path) -> None:
     apply_config(resolved, masker=masker, log_stream=io.StringIO())
     apply_config(resolved, masker=masker, log_stream=io.StringIO())
     assert masker.scrub("NWH-M000123") == "***"
+
+
+def test_max_learned_values_from_config_reaches_the_masker(tmp_path: Path) -> None:
+    resolved = load_config(tmp_path, overrides={"masking.max_learned_values": "2"}, environ={})
+    masker = apply_config(resolved, masker=Masker(), log_stream=io.StringIO())
+    for index in range(5):
+        masker.register(f"learned-{index:03d}", pinned=False)
+    assert masker.learned_count == 2
