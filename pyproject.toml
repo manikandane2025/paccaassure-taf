@@ -22,16 +22,16 @@ classifiers = [
 # Version strategy (Phase 0 review): floor = oldest version we test (CI "lowest-direct" job),
 # cap = next major. For 0.x packages the cap is <1.0. Exact versions live in uv.lock.
 dependencies = [
-    "pydantic>=2.10,<3",
-    "pydantic-settings>=2.7,<3",
+    "pydantic>=2.11,<3",             # 2.11: model_fields typed as a class attribute
     "structlog>=25.1,<27",           # CalVer: cap at the year after next
-    "typer>=0.15,<1",
+    "typer>=0.26,<1",                # <0.26 emits click 8.5 deprecation warnings (errors in tests)
     "pyyaml>=6.0.2,<7",
     "behave>=1.3,<2",
     "playwright>=1.50,<2",
     "httpx>=0.28,<1",
     "sqlalchemy>=2.0.36,<3",
     "alembic>=1.14,<2",
+    "cryptography>=44,<51",          # Ed25519 license verification (ADR-0010)
     "faker>=33,<41",                 # Faker majors are frequent and data-only; cap reviewed on bump
 ]
 
@@ -54,6 +54,14 @@ sinks-jira = []
 sinks-powerbi = ["msal>=1.31,<2"]
 sinks-teams = []
 evidence-blob = ["azure-storage-blob>=12.24,<13", "azure-identity>=1.19,<2"]
+
+[project.scripts]
+# Also runnable as `python -m paccaassure_taf` (locked-down endpoints block the .exe launcher).
+pataf = "paccaassure_taf.runner.cli:main"
+
+[project.entry-points."paccaassure_taf.plugins"]
+# Loaded only when a kv:// reference is resolved; needs the secrets-azure extra at that point.
+"secret_provider.kv" = "paccaassure_taf.core.secrets_azure:KeyVaultSecretProvider"
 
 [dependency-groups]
 dev = [
@@ -144,7 +152,7 @@ ban-relative-imports = "all"
 [tool.ruff.lint.per-file-ignores]
 "src/paccaassure_taf/core/config/**" = ["TID251"]   # the one place allowed to read the environment
 "scripts/**" = ["T201", "S603", "S607", "TID251"]   # dev task runner: prints, runs tools, passes env through
-"tests/**" = ["S101", "S603", "D", "PLR2004", "PLC2701"]
+"tests/**" = ["S101", "S105", "S106", "S603", "D", "PLR2004", "PLC2701"]  # S105/S106: fake credentials prove masking
 "stubs/**" = ["D", "N", "ANN401"]
 "sandbox/**" = ["D", "T201", "S104"]
 

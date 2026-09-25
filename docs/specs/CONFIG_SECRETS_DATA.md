@@ -1,7 +1,7 @@
 # Config, secrets and test data
 
 ## Config
-- Typed with pydantic-settings: `PatafConfig` (core) extended by app-pack and variant config models via plugin.
+- Typed pydantic models: `PatafConfig` (core, `extra="forbid"`) extended by app-pack and variant section models via plugin (Phase 2). Layers are merged by `core.config.load_config` with per-value provenance (ADR-0015); `PATAF_A__B=value` sets `a.b` (JSON for lists/objects); unknown keys and `PATAF_*` variables are errors.
 - Files: YAML; env overlays in `envs/<env>.yaml`; `Env` is an enum declared per variant suite (`local, dev, qa, uat, stage`).
 - `pataf config show --resolved` prints merged config with value source; secrets shown as `***`.
 - Invalid config fails fast at startup with a precise pydantic error (exit code 2, REPORTING §6).
@@ -23,3 +23,4 @@
 - `Sensitive[T]` marker type (defined in `core.masking`, re-exported by `paccaassure_taf.data`); masking applied when result events and evidence are written (so reports, history and sinks only ever see masked values); Playwright trace text redaction post-processor where feasible, and trace retention limited to failures in non-local envs.
 - Screenshots of PHI screens in shared envs: `evidence.screenshots: failures_only | blurred_fields` (blur elements marked `sensitive=True`).
 - Nothing real in Git: pre-commit gitleaks + PHI regex hook; CI scans evidence bundles before publishing.
+- Synthetic demo/test credentials **must contain the word `Northwind`** (e.g. `pw-Northwind-1`). `.gitleaks.toml` allowlists exactly that, so tests can prove masking with realistic values while every other secret-shaped string still fails the scan.

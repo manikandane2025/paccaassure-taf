@@ -12,3 +12,6 @@ Amendment 1 (2026-09-24, Accepted — Phase 0 review):
 Amendment 2 (2026-09-24, Accepted — Phase 0 checkpoint 1):
 - The allow-list adds **ISC** and **0BSD**: both OSI-approved, permissive, no copyleft, and functionally equivalent to MIT (0BSD even drops the attribution requirement). Trigger: `shellingham` (ISC), a required dependency of `typer`. Full list: MIT, MIT-0, BSD-2-Clause, BSD-3-Clause, 0BSD, ISC, Apache-2.0, PSF-2.0, Python-2.0, MPL-2.0.
 - The temporary per-package exception for `shellingham` is removed; per-package exceptions remain for genuinely unusual cases only.
+
+Open item (2026-09-25, owner: product owner — business decision, not engineering):
+- The **tier split** — which capabilities are core vs licensed extras — is not final. `core.license.Entitlement` lists today's candidates (`desktop`, `jsp`, `history.shared`, `parallel`, `sinks.*`) so the mechanism is testable, but no feature is gated yet. In particular, **JSP may move to core**. Do not add entitlement checks to features until the split is decided.

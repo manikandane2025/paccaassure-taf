@@ -97,7 +97,18 @@ def _imports() -> list[list[str]]:
 
 
 def _test() -> list[list[str]]:
-    return [python_module("pytest", "tests/unit")]
+    # Unit tests + every docstring example in src (hard rule 9: examples must run).
+    return [python_module("pytest", "tests/unit", "src/paccaassure_taf", "--doctest-modules")]
+
+
+def _coverage() -> list[list[str]]:
+    # Phase 1 acceptance: >= 90% line+branch coverage on paccaassure_taf.core.
+    return [
+        python_module(
+            "pytest", "tests/unit", "--cov=paccaassure_taf.core", "--cov-report=term-missing",
+            "--cov-fail-under=90",
+        )
+    ]  # fmt: skip
 
 
 def _licenses() -> list[list[str]]:
@@ -162,7 +173,8 @@ TASKS: dict[str, Task] = {
         Task("format", "apply ruff fixes and formatting", _format),
         Task("typecheck", "mypy --strict (config in pyproject.toml)", _typecheck),
         Task("imports", "import-linter layer contracts (ARCHITECTURE §3)", _imports),
-        Task("test", "unit tests", _test),
+        Task("test", "unit tests + docstring examples (doctest)", _test),
+        Task("coverage", "unit tests with >=90% coverage gate on core", _coverage),
         Task("licenses", "third-party license allow-list (ADR-0010)", _licenses),
         Task("audit", "known-vulnerability audit of locked deps (network)", _audit),
         Task("hooks", "all pre-commit hooks on all files", _hooks),

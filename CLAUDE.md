@@ -28,7 +28,7 @@ Build a **commercial, customer-agnostic** test automation product that we licens
 5. Be **AI-native**. Every PaccaAssureTAF repo (core, app pack, variant suite) carries the context an agent needs to script or extend correctly without outside explanation.
 
 ## Stack (non-negotiable unless an ADR changes it)
-- Python 3.12+, uv, Behave, Playwright (sync API), Appium 2 + Appium-Python-Client, httpx, pydantic v2 + pydantic-settings, SQLAlchemy 2 + Alembic (history store), python-oracledb / PyMySQL / pyodbc / pg8000, structlog, Typer, pytest (framework unit tests only), mypy `--strict`, ruff, import-linter, pre-commit, copier, Docker.
+- Python 3.12+, uv, Behave, Playwright (sync API), Appium 2 + Appium-Python-Client, httpx, pydantic v2 (config: own layered loader with provenance, ADR-0015), SQLAlchemy 2 + Alembic (history store), python-oracledb / PyMySQL / pyodbc / pg8000, structlog, Typer, pytest (framework unit tests only), mypy `--strict`, ruff, import-linter, pre-commit, copier, Docker.
 - Report UI: TypeScript + Vite, built to a **single self-contained HTML template**. Its types are generated from the Python result models.
 - **Every dependency must carry a commercial-friendly license** (MIT/BSD/ISC/0BSD/Apache-2.0/PSF/MPL-2.0; an SPDX `OR` expression passes if any option is allowed). No GPL/AGPL/LGPL. This is enforced in CI (ADR-0010).
 - **Tool-agnostic CI** (ADR-0014): every check is a `scripts/dev.py` task; CI YAML (GitHub Actions first) only calls those tasks.
@@ -72,6 +72,7 @@ uv sync --all-extras                      # install workspace
 uv run python scripts/dev.py check        # ruff + format check + mypy + lint-imports + unit tests (what CI runs)
 uv run python scripts/dev.py licenses     # dependency license allow-list (ADR-0010)
 uv run python scripts/dev.py --help       # list every dev task
+uv run python -m paccaassure_taf config show --resolved   # = pataf config show (works on locked-down endpoints)
 uv run pataf doctor                     # env check: browsers, Appium, DB drivers, history store, license
 uv run pataf run --app demo --variant demo --env local --tags @smoke
 uv run pataf run --dry-run              # resolve every step, no execution

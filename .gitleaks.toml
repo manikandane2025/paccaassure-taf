@@ -1,0 +1,13 @@
+# gitleaks configuration: all default rules, plus ONE narrow allowlist.
+# Convention (CONFIG_SECRETS_DATA "Nothing real in Git"): synthetic demo/test credentials
+# always contain the word "Northwind" (e.g. "pw-Northwind-1"), so tests can prove masking
+# with realistic-looking values without weakening secret scanning for anything else.
+title = "paccaassure-taf-core"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Synthetic Northwind Health demo credentials"
+regexTarget = "secret"
+regexes = ['''(?i)northwind''']

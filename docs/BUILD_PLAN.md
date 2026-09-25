@@ -8,11 +8,15 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - Unit tests: a package import smoke test (every package imports, has a docstring and `__all__`), so the unit job has real tests from day one.
 - `sandbox/compose.yaml` (Northwind Health, synthetic data): web app (FastAPI-backed Vite+Preact SPA behind nginx: login, search, table, detail, form), Tomcat 9 JSP app (frameset, postback form with Struts-style token, popup, generated-id table), FastAPI JSON API with OpenAPI, Postgres 16 with separate `northwind` (app data) and `pataf_history` DBs. Sandbox Python uses ruff + standard mypy (not `--strict`).
 - ✅ mypy, ruff, lint-imports, license check pass; sandbox apps serve.
+- **Sequencing decision (2026-09-24):** the sandbox item moved after Phase 1. Phase 1 is pure Python with unit tests only (hard-rule-10 exemption), so it has no sandbox dependency; the sandbox **must** be complete before Phase 2 starts (Phase 2 acceptance needs 10 sandbox web scenarios). All other Phase 0 items are done (Checkpoint 1, `docs/STATUS.md`). CI green on GitHub is last priority.
+- **Sandbox split (2026-09-25):** build now only what Phases 2–5 need — Postgres seed (`northwind` + `pataf_history`), the JSON API, the web app, and `dev.py` sandbox tasks. The **Tomcat JSP app moved to the Phase 6 prerequisites** (below).
 
 ## Phase 1 — Core
 - Layered typed config + `pataf config show`; SecretRef + env/Key Vault providers; structlog with masking; `Sensitive[T]` (in `core.masking`); errors; `wait.until`; plugin registry (incl. `ConnectionProvider`); license verification module (entry-point only, test keys).
+- `pataf` must also run as `python -m paccaassure_taf` (locked-down endpoints block the `pataf.exe` launcher).
 - Exemption from hard rule 10: no runner exists yet, so Phase 1 features ship unit tests, docs and CHANGELOG but no sandbox e2e scenario or catalog regen.
 - ✅ ≥ 90% unit coverage on core; masking proven; actionable config errors; expired license degrades gracefully.
+- **Status (2026-09-24): acceptance met** — core coverage 98.4% (gate: `dev.py coverage`); masking proven by tests incl. logs, tracebacks, config errors; config errors name key + source layer; expired/missing/invalid license → degraded `LicenseStatus`, never raises. `pataf config show` works as `python -m paccaassure_taf`.
 
 ## Phase 2 — Results model + elements + web + typed BDD
 - `paccaassure_taf.results`: event and aggregate models, JSON Schema export, event writer, merger, `run.json`.
@@ -20,7 +24,8 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - `paccaassure_taf.bdd`: typed decorators, `World[S]` (finalize the multi-pack scenario-store combination rule; amend ADR-0002), annotation-driven parse types, `Table[Model]` with `${…}` scenario references, hooks writing events, `w.evidence.record` → `StepResult.outputs`.
 - Runner v1: `pataf run`, `--dry-run`, tags, env; `summary.md/json`.
 - `pataf doctor` v1 scope: Python/uv versions, Playwright browsers installed for the pinned version, config resolves, license file, and **locked-down endpoint detection** — try launching a console-script `.exe` from the environment's scripts dir vs. `python -m`; on "Access is denied" report "unsigned launchers blocked by endpoint policy; use `python -m` entry points" (see customer-onboarding TEMPLATE, "Locked-down Windows endpoints").
-- ✅ 10 sandbox web scenarios produce valid `run.json` (schema-validated); wrong element action fails mypy (should-fail test); dry-run resolves all steps.
+- **Performance check (masking):** a benchmark test with a `Masker` holding 10,000 learned values (+ pinned secrets and config patterns) shows logging/event-writing overhead within the ARCHITECTURE §6 budget (event writing < 5% of runtime; framework overhead < 300 ms/scenario). Measure both `scrub()` per log line and `register()` of a *new* learned value (it rebuilds the combined regex). If over budget, switch the value matcher (e.g. Aho-Corasick / incremental rebuild) and/or lower `masking.max_learned_values` (default 10,000).
+- ✅ 10 sandbox web scenarios produce valid `run.json` (schema-validated); wrong element action fails mypy (should-fail test); dry-run resolves all steps; masking performance check within budget.
 
 ## Phase 3 — Report UI v1
 - `report-ui/` (TS strict, Vite, single-file build), generated TS types from JSON Schema, Overview / Tests / Test detail / Failures views, evidence viewer, white-label theme, `pataf report build/open`, shard merge.
@@ -36,6 +41,7 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - ✅ 30 synthetic runs ingested; trends, flaky, new/regressed/fixed correct against fixtures in both SQL and Python; gates drive exit codes.
 
 ## Phase 6 — JSP driver
+- **Prerequisite (moved from Phase 0):** sandbox Tomcat 9 JSP app (Maven inside multi-stage Docker): login + JSESSIONID + short session timeout, frameset `top>nav|content` + nested iframe, postback form with Struts-named TOKEN + CSRF token (reuse → error page), ISO-8859-1 page, table with `j_idN:form:j_idM` ids regenerated per request, popup that writes back to its opener, `alert`/`confirm`, a plain servlet for `ServletClient` posts; reads the shared `northwind` DB via JDBC.
 - Frames, postback, session recovery, popups, `ServletClient` with token extraction, locator lint.
 - ✅ JSP sandbox scenarios pass including frameset + token form + popup.
 

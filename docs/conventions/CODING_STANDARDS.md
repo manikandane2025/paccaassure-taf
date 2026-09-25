@@ -43,4 +43,4 @@
 - Invoke Python tools as `python -m <module>` (or `python -c` for tools without `__main__`), never through console-script `.exe` launchers: endpoint security on managed Windows machines blocks unsigned launchers in user-writable paths (`.venv\Scripts`, pre-commit's cache) with "Access is denied". For the same reason pre-commit hooks are all `repo: local` running from the locked uv environment.
 
 ## Git
-Conventional commits. Branches: `main` (released), `develop` (integration), `feature/<ticket>-<slug>` from `develop` (ADR-0003). PR template requires: spec updated? catalog regenerated? tests added? CHANGELOG?
+Conventional commits. Branches: `main` (released), `develop` (integration), `feature/<ticket>-<slug>` from `develop` (ADR-0003). Each build-plan phase gets its own branch from `develop` (e.g. `feature/phase-2-results-web-bdd`) and is merged back with `--no-ff` at its checkpoint. PR template requires: spec updated? catalog regenerated? tests added? CHANGELOG?
