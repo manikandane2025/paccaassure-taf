@@ -4,7 +4,7 @@ All drivers sit behind `paccaassure_taf.elements` and are created lazily by `Dri
 
 ## Web — `paccaassure_taf.web` (Playwright, sync)
 - One `Browser` per worker; one `BrowserContext` per scenario (isolation); pages tracked per context.
-- Config: browser (chromium/firefox/webkit/msedge), headless, viewport, base_url, locale, timezone, timeouts, `storage_state` per role (login once per worker, reuse per scenario).
+- Config: browser (chromium/firefox/webkit/msedge), headless, viewport, base_url, locale, timezone, timeouts, `storage_state` per role (login once per worker, reuse per scenario), `block_resources: [image, font, media]` (optional speed-up; never blocks documents/scripts/XHR).
 - Features: auth state caching by `UserRole`, network interception helpers (`w.app.network.mock(...)`, wait-for-response), downloads/uploads, multi-tab, dialogs, accessibility snapshot check (axe via injected script, optional `@a11y` tag).
 - Evidence: Playwright trace on failure (`retain-on-failure`), screenshot on failure + on `w.evidence.capture("name")`, optional video, HAR on `@har`.
 - Remote: support `connect` to a Playwright server / cloud grid by config.
@@ -36,10 +36,12 @@ Builds on `paccaassure_taf.web`, targeting legacy JSP/Servlet enterprise apps (f
 - Driver choice per ADR-0004 (spike: appium-windows-driver vs novawindows).
 
 ## DB — `paccaassure_taf.data.db`
-- Named connections in config (e.g. `claims`, `eligibility`, `reporting`): Oracle (python-oracledb thin mode), MariaDB/MySQL (PyMySQL), SQL Server (pyodbc). Credentials via `SecretRef`.
+- Named connections in config (e.g. `claims`, `eligibility`, `reporting`): Oracle (python-oracledb thin mode), MariaDB/MySQL (PyMySQL), SQL Server (pyodbc), PostgreSQL (pg8000 — BSD; core never depends on LGPL psycopg, though customers may install it themselves). Connections go through SQLAlchemy 2 Core (no ORM). Credentials via `SecretRef`.
+- `ConnectionProvider` plugins (entry point `paccaassure_taf.plugins`) run before a connection opens: access brokers, just-in-time credentials, tunnels. They return connection parameters; they never see query data.
 - `Query[Row]` from `.sql` files with named binds only (no string formatting — lint rule). Read-only by default; write queries require `@db-write` tag and a `Mutation` type.
 - Helpers: poll-until-row (`wait_for_row`), compare result sets with typed diffs.
 
 ## Files — `paccaassure_taf.data.files`
 - Readers returning typed models: CSV, Excel (openpyxl), fixed-width (layout model), JSON, XML, PDF text (pypdf), and X12 EDI (834/835/837/270/271) via a pluggable parser.
 - Comparators with tolerances and masked diffs; remote sources (SFTP, Azure Blob) via `DataProvider` plugins.
+- **Field-mapping comparator** (Phase 4): a typed `FieldMapping` model maps a source field (JSON path / CSV column) to a target field (fixed-width `start`/`length` or column), with optional conditional rules (`when <source value> then <target value>`, else default). Comparing a source and target record yields typed `FieldComparison` results (expected, actual, rule applied, pass/fail, all masked) that `expect` can assert on and the report's Field mapping panel renders (REPORTING §3).

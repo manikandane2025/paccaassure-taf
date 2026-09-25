@@ -5,7 +5,14 @@
 - **Variant suite** — customer-owned repo testing one deployment/client/state/region/tenant of one or more apps, extending app packs via overrides.
 - **Surface** — a page (web/JSP), screen (desktop) or endpoint (API) model. POM generalized.
 - **Flow** — multi-surface business task with typed inputs/outputs.
-- **World** — PaccaAssureTAF's typed facade over Behave's context.
+- **World** — PaccaAssureTAF's typed facade over Behave's context; `World[S]` is generic over the scenario store `S`.
+- **Scenario store** — per-scenario typed dataclass (`w.scenario`) declared by an app pack; reset for every scenario.
+- **Sub-action** — an element action or API/DB call recorded by a driver inside a step ("Clicked MemberSearchPage.search_btn").
+- **Step output** — a named value a step produced (`w.evidence.record`), stored masked in `StepResult.outputs`.
+- **Attempt** — one execution of a test; retries create further attempts in the same run.
+- **Worker / shard** — a parallel Behave process in one run / a slice of the suite run by one CI job; both merge into one `run.json`.
+- **Quarantine** — configured list of known-flaky tests: still run and reported, excluded from the gate.
+- **ConnectionProvider** — plugin that prepares DB connection parameters (access broker, just-in-time credentials) before a connection opens.
 - **Surface registry** — maps a base surface type to a variant's override.
 - **Result event** — append-only record emitted during a run; the canonical source for every report and sink.
 - **RunResult / TestResult / StepResult** — aggregate result models (public contract).

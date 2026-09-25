@@ -11,6 +11,10 @@ Reporting, history, trends and all result sinks (ADO, Jira, Power BI, Teams) are
 | CI gate | pipeline template stage on PR / release | gates decide pass/fail |
 Desktop suites run on self-hosted **Windows** agents with Appium as a service.
 
+**Exit codes** (defined in REPORTING §6, identical in every CI system): `0` gate passed · `1` gate breached · `2` config/framework error · `3` sink error (opt-in). Templates treat any non-zero code as a failed step; no template special-cases codes.
+
+**Tool-agnostic principle (ADR-0014):** all logic lives in the `pataf` CLI (for customers) and `scripts/dev.py` (for core's own CI). Every pipeline template is a thin adapter that installs uv, calls those commands, and publishes artifacts/summaries using the CI system's native mechanism.
+
 ## Pipeline templates (`pipelines/`)
 - **Azure Pipelines**: `pataf-run.yml` (params: app, variant, env, tags, workers, shards), `pataf-post.yml` (merge → report → history ingest → gates → sinks), `pataf-release-pack.yml` (build/test/publish an app pack wheel). Sharding via `strategy: parallel` + `--shard i/N`; the post job merges shards.
 - **Jenkins**: shared-library style Jenkinsfile with the same stages.

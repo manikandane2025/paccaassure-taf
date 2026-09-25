@@ -28,13 +28,15 @@ Build a **commercial, customer-agnostic** test automation product that we licens
 5. Be **AI-native**. Every PaccaAssureTAF repo (core, app pack, variant suite) carries the context an agent needs to script or extend correctly without outside explanation.
 
 ## Stack (non-negotiable unless an ADR changes it)
-- Python 3.12+, uv, Behave, Playwright (sync API), Appium 2 + Appium-Python-Client, httpx, pydantic v2 + pydantic-settings, SQLAlchemy 2 + Alembic (history store), python-oracledb / PyMySQL / pyodbc, structlog, Typer, pytest (framework unit tests only), mypy `--strict`, ruff, import-linter, pre-commit, copier, Docker.
+- Python 3.12+, uv, Behave, Playwright (sync API), Appium 2 + Appium-Python-Client, httpx, pydantic v2 + pydantic-settings, SQLAlchemy 2 + Alembic (history store), python-oracledb / PyMySQL / pyodbc / pg8000, structlog, Typer, pytest (framework unit tests only), mypy `--strict`, ruff, import-linter, pre-commit, copier, Docker.
 - Report UI: TypeScript + Vite, built to a **single self-contained HTML template**. Its types are generated from the Python result models.
-- **Every dependency must carry a commercial-friendly license** (MIT/BSD/Apache-2.0/PSF/MPL-2.0). No GPL/AGPL. This is enforced in CI (ADR-0010).
+- **Every dependency must carry a commercial-friendly license** (MIT/BSD/ISC/0BSD/Apache-2.0/PSF/MPL-2.0; an SPDX `OR` expression passes if any option is allowed). No GPL/AGPL/LGPL. This is enforced in CI (ADR-0010).
+- **Tool-agnostic CI** (ADR-0014): every check is a `scripts/dev.py` task; CI YAML (GitHub Actions first) only calls those tasks.
 
 ## Where things are
 | Need | Read |
 |---|---|
+| **Current status and next steps** | `docs/STATUS.md` (read first in every new session) |
 | Product principles, licensing, packaging, white-label | `docs/PRODUCT.md` |
 | Layers, packages, dependency rules | `docs/architecture/ARCHITECTURE.md` |
 | Why a decision was made | `docs/architecture/adr/` |
@@ -53,19 +55,23 @@ Build a **commercial, customer-agnostic** test automation product that we licens
 ## Hard rules (violations fail review)
 1. **Customer-agnostic core.** No customer names, apps, domains, URLs, or business rules in `paccaassure-taf-core` code, tests, examples, or docs. Examples use the fictitious demo company **Northwind Health**.
 2. **Typed everything.** `mypy --strict` passes with zero unexplained ignores in `src/`. No `Any` in public APIs. No raw strings where an enum or model exists.
-3. **Layer direction:** `bdd → flows → pages/screens/endpoints → elements/drivers → core`. Never upward. Enforced by import-linter.
+3. **Layer direction:** `bdd → flows → pages/screens/endpoints → elements/drivers → core`. Never upward. Post-run packages (`reporting`, `gates`, `sinks`, `history`) never import drivers or bdd. Enforced by the two import-linter contracts in ARCHITECTURE §3.
 4. **Steps are one-liners** that call a flow, a page, or `expect`. No locators, waits, or branching logic in steps.
 5. **No sleeps.** `time.sleep` is banned. Use auto-wait or `paccaassure_taf.core.wait.until(...)`.
 6. **No secrets or sensitive data in Git or unmasked artifacts.** Use `SecretRef` for secrets and `Sensitive[...]` for fields such as PII/PHI/PCI. Masking happens before anything is written to disk or sent to a sink.
 7. **Reuse before create.** Search `docs/catalog/` (generated) first. Duplicate step phrasing fails `pataf lint steps`.
 8. **The result event schema is a public contract.** It is versioned. Changes are additive within a major version, and every change updates the JSON Schema, the TS types, and the history migrations together.
 9. **Every public class and function has a docstring with a usage example.** Catalogs are generated from them.
-10. **Each feature ships complete:** unit tests, a sandbox e2e scenario, a docs update, a catalog regen, and a CHANGELOG entry.
+10. **Each feature ships complete:** unit tests, a sandbox e2e scenario, a docs update, a catalog regen, and a CHANGELOG entry. (Phases 0–1 are exempt from the e2e scenario and catalog regen: the runner and catalog arrive in Phase 2. See BUILD_PLAN.)
 11. **Public API follows SemVer.** A breaking change needs a major bump, a note in `docs/migrations/`, and one minor version of deprecation warnings first.
 
 ## Commands
-```bash
-uv sync                                   # install workspace
+Every command works unchanged in PowerShell 5.1/7, cmd, bash and zsh (no `&&`, no `cd` subshells). PowerShell 7 is recommended, not required.
+```text
+uv sync --all-extras                      # install workspace
+uv run python scripts/dev.py check        # ruff + format check + mypy + lint-imports + unit tests (what CI runs)
+uv run python scripts/dev.py licenses     # dependency license allow-list (ADR-0010)
+uv run python scripts/dev.py --help       # list every dev task
 uv run pataf doctor                     # env check: browsers, Appium, DB drivers, history store, license
 uv run pataf run --app demo --variant demo --env local --tags @smoke
 uv run pataf run --dry-run              # resolve every step, no execution
@@ -76,10 +82,10 @@ uv run pataf history trends --last 30   # CLI trend summary
 uv run pataf catalog                    # regenerate docs/catalog/*
 uv run pataf lint                       # steps + features + tags + locators + overrides
 uv run pytest tests/unit
-uv run mypy src && uv run ruff check . && uv run lint-imports
-(cd report-ui && npm ci && npm run build) # report UI template
-docker compose -f sandbox/compose.yaml up -d
+uv run python scripts/dev.py report-ui    # build report UI template (Phase 3+)
+docker compose -f sandbox/compose.yaml up -d --wait
 ```
+`pataf …` commands arrive from Phase 2 onward.
 
 ## Working agreement for agents
 - Work phase by phase from `docs/BUILD_PLAN.md`. Don't start a phase until the previous phase's acceptance criteria pass.

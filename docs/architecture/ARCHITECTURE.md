@@ -33,13 +33,17 @@ paccaassure-taf-core/
 ├── schemas/results/v1 # generated JSON Schema (public contract)
 ├── bi/powerbi/        # view docs, data dictionary, DAX snippets
 ├── tests/unit  tests/integration  tests/contract (schema + SQL/Python analytics parity)
-├── sandbox/           # docker compose: Northwind web app, Tomcat JSP app, API app, Postgres (history)
+├── sandbox/           # docker compose: Northwind web app, Tomcat JSP app, API app, Postgres (northwind + pataf_history DBs)
 ├── examples/app-pack-demo/  examples/variant-demo/
 ├── templates/app-pack/  templates/variant-suite/   # copier
-├── pipelines/azure/  pipelines/jenkins/  pipelines/github/
+├── pipelines/azure/  pipelines/jenkins/  pipelines/github/   # CUSTOMER-facing templates (Phase 8)
+├── scripts/dev.py     # cross-shell dev/CI task runner — the only thing CI calls (ADR-0014)
+├── .github/workflows/ci.yml   # core's OWN CI: thin adapter over scripts/dev.py (ADR-0014)
+├── stubs/             # typed stubs for untyped third-party packages (e.g. behave)
 ├── docker/            # runner image
 └── docs/
 ```
+The root `pyproject.toml` is both the core package and the uv workspace root; `examples/*` join as workspace members in Phase 10.
 Every `src/paccaassure_taf/<pkg>/` has a short `CLAUDE.md` (purpose, public API, invariants, how to extend).
 
 ## 3. Logical layers (inside every test)
@@ -51,8 +55,36 @@ Every `src/paccaassure_taf/<pkg>/` has a short `CLAUDE.md` (purpose, public API,
 | pages / screens / endpoints | surface models, typed elements | elements, drivers |
 | elements + drivers | technology interaction; emit sub-action events | core, results |
 | results / evidence | recording | core |
-| core | config, secrets, logging, masking, waits, errors, plugins | 3rd party only |
-Reporting, history, gates and sinks consume `results` only — they never import drivers or bdd. Enforced by import-linter.
+| core | config, secrets, logging, masking (incl. `Sensitive[T]`), waits, errors, plugins | 3rd party only |
+
+### Package contracts (import-linter, `pyproject.toml`)
+Higher layers may import lower ones, never the reverse. `a | b` = independent siblings (may not import each other).
+
+**Contract 1 — runtime stack** (what runs inside a scenario):
+```
+runner
+bdd
+flows
+jsp                      # builds on web
+web | api | desktop
+elements | data          # data = models, db, files (surfaces import data models)
+evidence
+results
+core
+```
+**Contract 2 — post-run stack** (after the run, from `run.json`):
+```
+runner
+sinks | gates | reporting
+history                  # reporting embeds trend snapshots; gates use baselines; sinks dedupe by signature
+results
+core
+```
+**Contract 3 — forbidden:** `reporting`, `history`, `gates`, `sinks` must not import `bdd`, `flows`, `web`, `jsp`, `api`, `desktop`, `elements`, `data`, `evidence`.
+**Contract 4 — forbidden externals:** `core` and `results` must not import `playwright`, `appium`, `behave`; only `web` and `jsp` may import `playwright`; only `desktop` may import `appium`; only `bdd` and `runner` may import `behave`.
+**Contract 5 — forbidden:** runtime packages (`core` … `bdd`) must not import `reporting`, `history`, `gates`, `sinks`. (Contracts 1 and 2 each constrain only the packages they list, so without this a runtime→post-run import such as `elements → history` would pass.)
+`tests/unit/test_import_contracts.py` proves each contract type fails on a deliberate violation.
+`Sensitive[T]` lives in `core.masking` (masking must see it) and is re-exported by `paccaassure_taf.data` for authors.
 
 ## 4. Runtime flow
 1. `pataf run` verifies license (entry point only), resolves layered config, selects features by tags.
@@ -62,7 +94,7 @@ Reporting, history, gates and sinks consume `results` only — they never import
 Each post-run stage is also a standalone CLI command so CI can split them into separate steps.
 
 ## 5. Extension points (entry-point groups)
-`paccaassure_taf.plugins` (ElementType, ParseType, DriverFactory, AuthProvider, SecretProvider, DataProvider), `paccaassure_taf.sinks` (ResultSink, Notifier), `paccaassure_taf.evidence_sinks`, `paccaassure_taf.history_backends`, `paccaassure_taf.report_panels` (custom report tabs fed by extra result metadata). Core never hardcodes a vendor.
+`paccaassure_taf.plugins` (ElementType, ParseType, DriverFactory, AuthProvider, SecretProvider, DataProvider, ConnectionProvider — access brokers / just-in-time DB credentials run before a DB connect), `paccaassure_taf.sinks` (ResultSink, Notifier), `paccaassure_taf.evidence_sinks`, `paccaassure_taf.history_backends`, `paccaassure_taf.report_panels` (custom report tabs fed by extra result metadata), `paccaassure_taf.importers` (Proposed, ADR-0013: external tool results → `TestResult`). Core never hardcodes a vendor.
 
 ## 6. Non-functional targets
 - Framework overhead per scenario < 300 ms excluding app time; event writing < 5% of runtime.

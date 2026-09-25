@@ -18,19 +18,19 @@ runner hooks ──► events.jsonl (per worker) ──► merge ──► run.j
 Package: `paccaassure_taf.results`. Pydantic v2 models → exported JSON Schema (`schemas/results/v1/*.json`) → generated TypeScript types for the UI (`report-ui/src/generated/`). One source of truth; CI fails if generated artifacts are stale.
 
 ### Events (append-only, `results/<run-id>/events-<worker>.jsonl`)
-`RunStarted`, `SuiteStarted` (feature), `TestStarted` (scenario / outline example), `StepStarted`, `StepFinished`, `Attachment`, `LogRecord` (sampled, masked), `TestFinished`, `SuiteFinished`, `RunFinished`. Every event has `schema_version`, `run_id`, `worker_id`, `ts` (UTC, monotonic seq), and is masked **before** being written.
+`RunStarted`, `SuiteStarted` (feature), `TestStarted` (scenario / outline example), `StepStarted`, `StepFinished`, `Attachment`, `LogRecord` (sampled, masked), `TestFinished`, `SuiteFinished`, `RunFinished`. Every event has `schema_version`, `run_id`, `worker_id`, `seq` (per-worker monotonic integer, the ordering key), `ts` (UTC timestamp, informational — wall clocks can jump), and is masked **before** being written.
 
 Streaming events (not one big file at the end) means: crash-safe partial results, live progress in CLI, and a future live mode in PaccaAssureTAF Hub.
 
 ### Aggregates (`run.json`)
 - `RunResult`: run id, project, app(s), variant, env, trigger (local/CI/schedule), CI metadata (provider, pipeline, build number, commit, branch, PR), tool versions (core, app packs, browsers, Appium driver), start/end, totals, gate outcome, license banner.
 - `TestResult`: **stable `test_key`**, title, feature path, tags, TMS ids, requirement ids, layer(s), status (`passed|failed|broken|skipped|blocked|flaky`), attempts, duration, failure (`FailureInfo`), steps, attachments.
-- `StepResult`: keyword, text, typed params (masked), status, duration, sub-actions (element actions and API calls recorded by drivers — "Clicked MemberSearchPage.search_btn"), attachments.
-- `FailureInfo`: category (`assertion|locator|timeout|api|data|environment|framework`), message (masked), element/endpoint involved, stack (trimmed to user code), **failure signature** (hash of normalized message + category + element/endpoint + top user frame; volatile tokens like ids, numbers, timestamps stripped).
-- Status semantics: `failed` = assertion/expectation failed (likely product or test bug); `broken` = error outside expectation (locator, timeout, env, exception); `flaky` = failed then passed on retry in this run.
+- `StepResult`: keyword, text, typed params (masked), **outputs** (masked named values the step produced, recorded via `w.evidence.record(name, value)` — e.g. a generated claim number), status, duration, sub-actions (element actions and API calls recorded by drivers — "Clicked MemberSearchPage.search_btn"), attachments.
+- `FailureInfo`: category (`assertion|locator|timeout|api|auth|data|environment|framework`; `auth` = login/token/permission failures, triaged differently from `environment`), message (masked), element/endpoint involved, stack (trimmed to user code), **failure signature** (hash of normalized message + category + element/endpoint + top user frame; volatile tokens like ids, numbers, timestamps stripped).
+- Status semantics: `failed` = assertion/expectation failed (likely product or test bug); `broken` = error outside expectation (locator, timeout, env, exception); `flaky` = failed then passed on retry in this run; `blocked` = not executed because something it depends on failed (Background or `before_*` hook failure, a failed data reservation, or an open `@known-issue:<id>` configured to block); `skipped` = deliberately not run (tag/env filter, `@wip`).
 
 ### Test identity
-`test_key = sha1(app + feature relative path + scenario title + example row key)`, overridable by `@id:<stable-id>` tag so renames keep history. `pataf lint` warns when a rename would break history without an `@id`.
+`test_key = sha1(app + feature relative path + scenario title + example row key)`, overridable by `@id:<stable-id>` tag so renames keep history. `example row key` = Examples block name + sha1 of the row's **masked** cell values (not its index, so inserting rows doesn't shift identities, and raw sensitive values never enter the key); empty for plain scenarios. `pataf lint` warns when a rename would break history without an `@id`.
 
 ## 2. Evidence
 - Stored under `results/<run-id>/evidence/<test_key>/<attempt>/`: screenshots (masked/blurred per config), Playwright traces, desktop page-source, HAR, API request/response (masked), DB query + result summary, logs.
@@ -46,6 +46,7 @@ Streaming events (not one big file at the end) means: crash-safe partial results
   4. **Failures** — grouped by signature with counts and affected tests; category breakdown.
   5. **Trends** (when history available) — pass rate, duration, flaky rate over last N runs; top flaky; slowest; newly failing.
   6. **Traceability** — requirements/TMS ids → tests → latest status; uncovered TMS items (from `pataf tms check`).
+- Built-in panel (via the `report_panels` extension point): **Field mapping** — renders typed field-mapping comparison results from `data.files` (source field → target field/position, expected vs actual, rule applied), grouped by record, with mismatches first (Phase 4).
 - White-label theme from config; dark/light; keyboard accessible (WCAG 2.1 AA).
 - Merge: `pataf report build --merge results/shard-*` combines shards into one run.
 - Performance target: 20k tests report opens < 3 s on a laptop (virtualized lists, lazy evidence).
@@ -78,7 +79,7 @@ Baseline = previous run with same project/app/variant/env/branch (configurable: 
 The same computations exist in Python (`paccaassure_taf.history.analytics`) for report and gates, and are unit-tested against the SQL views for parity.
 
 ## 5. Sinks (plugins, entry-point group `paccaassure_taf.sinks`)
-Protocol: `ResultSink.publish(run: RunResult, ctx: SinkContext) -> SinkReport` — idempotent, retry-safe, reports what it did; failures of a sink never change the test outcome (exit code 4 only if `sinks.fail_on_error: true`).
+Protocol: `ResultSink.publish(run: RunResult, ctx: SinkContext) -> SinkReport` — idempotent, retry-safe, reports what it did; failures of a sink never change the test outcome (exit code 3 only if `sinks.fail_on_error: true`; see §6).
 
 ### Azure DevOps (`sinks-ado`)
 - **Test Runs via REST API** (no JUnit file needed): create run (linked to build/release and optionally a Test Plan/Suite), add results with outcome, duration, error, stack (masked), associated Test Case (from `@tms:ADO-<id>`, updates test points), attachments (screenshots, trace zip, report link), complete run. Results appear in ADO "Tests" tab and Test Plans.
@@ -101,7 +102,16 @@ Protocol: `ResultSink.publish(run: RunResult, ctx: SinkContext) -> SinkReport` �
 Teams / Slack (cards from `summary.json`), email, generic webhook (signed HMAC), blob storage evidence sink, OpenTelemetry exporter.
 
 ## 6. Quality gates (read results + history)
-Config: `min_pass_rate`, `max_new_failures`, `max_regressions`, `max_flaky_score`, `required_tags_passed`, `max_duration`, `quarantine` (known flaky tests excluded from gate but still reported). Exit codes: 0 pass · 1 failures within gate · 2 gate breached · 3 config/framework error · 4 sink error (opt-in).
+Config: `min_pass_rate`, `max_new_failures`, `max_regressions`, `max_flaky_score`, `required_tags_passed`, `max_duration`, `quarantine` (known flaky tests excluded from gate but still reported).
+
+**The gate decides the exit code** (so CI needs no special-casing):
+| Code | Meaning |
+|---|---|
+| 0 | Gate passed. Failures the gate tolerates (e.g. quarantined, or within `min_pass_rate`) are allowed and still reported. |
+| 1 | Gate breached. |
+| 2 | Config or framework error (invalid config, framework crash, schema violation). |
+| 3 | Sink error — only when `sinks.fail_on_error: true`. |
+With no gate configured, the **default gate is "zero failures"**: any `failed`, `broken` or `blocked` non-quarantined test breaches it (`flaky` and `skipped` do not). The same codes apply to `pataf run` and to the standalone `pataf gates` / `pataf sinks publish` commands.
 
 ## 7. Report UI engineering (`report-ui/`)
 - TypeScript strict, Vite, a small framework (Preact or Solid) — no heavy UI kits; charts with a lightweight lib (uPlot or ECharts tree-shaken). License allow-list applies.

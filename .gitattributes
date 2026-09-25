@@ -1,0 +1,31 @@
+# Line endings: LF everywhere in the repo, regardless of core.autocrlf
+# (Windows is a first-class dev platform; CRLF breaks shell scripts in Linux containers).
+* text=auto eol=lf
+
+# Windows-native scripts keep CRLF
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.zip binary
+*.gz binary
+*.jar binary
+*.war binary
+*.woff binary
+*.woff2 binary
+*.pdf binary
+*.xlsx binary
+*.db binary
+*.sqlite binary
+*.parquet binary
+
+# Generated files (collapsed in diffs)
+uv.lock linguist-generated=true -diff

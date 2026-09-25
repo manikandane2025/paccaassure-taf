@@ -8,7 +8,21 @@ PaccaAssureTAF is sold to multiple enterprise customers. Every design choice is 
 - The demo company **Northwind Health** is used in the sandbox, examples, docs, and sales demos.
 
 ## 2. Packaging and distribution
-- `paccaassure-taf-core` is a Python wheel. Optional extras are `[desktop]`, `[jsp]`, `[db-oracle]`, `[db-mssql]`, `[db-mysql]`, `[history-postgres]`, `[history-mssql]`, `[sinks-ado]`, `[sinks-jira]`, and `[sinks-powerbi]`.
+- `paccaassure-taf-core` is a Python wheel. The base install covers web (Playwright), API (httpx), BDD, results, report and SQLite history. Optional extras:
+
+  | Extra | Adds | For |
+  |---|---|---|
+  | `[desktop]` | Appium-Python-Client | Windows desktop |
+  | `[jsp]` | (reserved; no extra deps today — JSP builds on web + httpx) | legacy JSP |
+  | `[db-oracle]` `[db-mssql]` `[db-mysql]` `[db-postgres]` | python-oracledb · pyodbc · PyMySQL · pg8000 | app DB checks |
+  | `[history-postgres]` `[history-mssql]` | pg8000 · pyodbc | shared history store |
+  | `[secrets-azure]` `[secrets-hcv]` | azure-identity + azure-keyvault-secrets · hvac | secret providers |
+  | `[api-contract]` | openapi-core | OpenAPI contract checks |
+  | `[files]` | openpyxl, pypdf | Excel / PDF readers |
+  | `[export-parquet]` | pyarrow | `pataf history export --format parquet` |
+  | `[sinks-ado]` `[sinks-jira]` `[sinks-powerbi]` `[sinks-teams]` `[evidence-blob]` | httpx-based clients; msal / azure-storage-blob where needed | result & evidence sinks |
+
+  Every extra's dependencies pass the license allow-list (ADR-0010). Exact pins live in `pyproject.toml`.
 - Delivery: a private package index per customer (e.g. Azure Artifacts, JFrog, Nexus) plus a runner container image.
 - `paccaassure-taf-report-ui` is built in this repo and embedded in the wheel as a static template. Customers never need Node.
 - Release train: minor versions monthly, patches as needed, and an LTS line every 12 months with 18 months of support. A support matrix covers Python, OS, browsers, Appium drivers, DBs, ADO Server/Services, and Jira DC/Cloud.
@@ -17,7 +31,7 @@ PaccaAssureTAF is sold to multiple enterprise customers. Every design choice is 
 - An offline-verifiable signed license file (Ed25519) includes customer, expiry, seats or agents, and entitled features (e.g. `desktop`, `history`, `sinks.powerbi`).
 - Checks happen **only at CLI entry points** (run start, report build, sink publish). They never happen mid-scenario, and they never phone home.
 - When a license expires: tests still run, but a banner appears in reports and entitled extras degrade gracefully. We never break a customer's release pipeline without warning.
-- Third-party license compliance: `pip-licenses` and `license-checker` (npm) run in CI with an allow-list. An SBOM (CycloneDX) is produced per release.
+- Third-party license compliance: an SPDX-aware allow-list check (`scripts/check_licenses.py`, policy in `scripts/license_policy.toml`) for Python and `license-checker` (npm, from Phase 3) run in CI. An SBOM (CycloneDX) is produced per release.
 
 ## 4. White-label and branding
 - The report theme is configurable per customer: logo, product name, colors, and footer. It is set in config and embedded at build time.

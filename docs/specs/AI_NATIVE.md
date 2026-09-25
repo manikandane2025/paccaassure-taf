@@ -18,7 +18,7 @@ Introspects registries and docstrings; writes Markdown + JSON:
 - `steps.md`: pattern, typed params, owning package, example usage, source path.
 - `surfaces.md`: pages/screens/endpoints with elements (name, type, locator) and methods (signature + first docstring line).
 - `flows.md`, `data-models.md`, `parse-types.md`, `tags.md`, `config-reference.md`, `sinks.md` (installed sinks + config), `result-schema.md` (fields of the result model), `history-views.md` (BI contract).
-CI fails if the catalog is stale (`pataf catalog --check`). Agents must search the catalog before creating new steps or pages (rule 6).
+CI fails if the catalog is stale (`pataf catalog --check`). Agents must search the catalog before creating new steps or pages (CLAUDE.md hard rule 7).
 
 ## 3. Context shipped with packages (ADR-0008)
 - Build step copies `docs/catalog`, package `CLAUDE.md` files, `TYPED_AUTHORING.md`, and golden examples into `paccaassure_taf/_ai/` inside the wheel.
@@ -31,13 +31,15 @@ CI fails if the catalog is stale (`pataf catalog --check`). Agents must search t
 - Result: an agent in a variant suite sees exactly the API of the versions it has installed.
 
 ## 4. Guardrails that make agent output correct
-- mypy --strict, ruff, import-linter, and `pataf lint` (steps, tags, locators, overrides) run in pre-commit and a Claude Code PostToolUse hook.
+- Fast feedback while editing: a Claude Code **PostToolUse** hook (`.claude/settings.json` → `scripts/hooks/post_edit.py`) runs `ruff check --fix` + `ruff format` on the **edited Python file only** (never the whole repo, never non-Python files).
+- Full checks before commit: pre-commit runs ruff, mypy --strict, import-linter and (from Phase 2) `pataf lint` (steps, tags, locators, overrides). CI runs the same via `scripts/dev.py check` (ADR-0014).
+- **Agents never ask for secrets.** If a credential is needed, the agent tells the user to store it in their secret store and reference it as a `SecretRef` (`kv://…`, `env://…`, `hcv://…`). If a user pastes a secret into chat, the agent does not use or repeat it and advises rotation.
 - `pataf run --dry-run` proves every Gherkin step resolves.
 - `pataf lint steps` detects duplicate/near-duplicate patterns (normalized text + parameter shape) to stop agents from inventing synonyms.
 - Locator lint: flags generated ids, absolute xpaths, nth-child chains, text locators on dynamic data.
 
 ## 5. Agent workflows (slash commands in `.claude/commands/`)
-`/new-page`, `/new-steps`, `/new-endpoint`, `/new-desktop-screen`, `/migrate-selenium-java`, `/triage-failure` (uses results + history), `/new-sink`, `/change-result-schema`, `/new-framework-feature`. Each recipe: read X → search catalog → generate → run checks → update catalog.
+`/new-page`, `/new-steps`, `/new-endpoint`, `/new-desktop-screen`, `/migrate-selenium-java`, `/triage-failure` (uses results + history), `/new-sink`, `/change-result-schema`, `/new-framework-feature`, `/review-change` (read-only review with a structured verdict: `status` approve | needs_changes | reject, `findings[]` with rule, file, line, fix_hint, severity, and a recommended next step). Each recipe: read X → search catalog → generate → run checks → update catalog.
 
 ## 6. Authoring aids (optional, later phases)
 - Playwright MCP / Playwright codegen to discover locators on a live page, then convert to typed page classes (`pataf gen page --from-url`).

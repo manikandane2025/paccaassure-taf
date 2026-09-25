@@ -1,0 +1,281 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "paccaassure-taf-core"
+version = "0.1.0.dev0"
+description = "PaccaAssureTAF core: typed, AI-native enterprise test automation (web, JSP, API, desktop, DB, files) with its own reporting, history and trends."
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+authors = [{ name = "PaccaAssureTAF" }]
+classifiers = [
+    "Private :: Do Not Upload",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Typing :: Typed",
+]
+# Version strategy (Phase 0 review): floor = oldest version we test (CI "lowest-direct" job),
+# cap = next major. For 0.x packages the cap is <1.0. Exact versions live in uv.lock.
+dependencies = [
+    "pydantic>=2.10,<3",
+    "pydantic-settings>=2.7,<3",
+    "structlog>=25.1,<27",           # CalVer: cap at the year after next
+    "typer>=0.15,<1",
+    "pyyaml>=6.0.2,<7",
+    "behave>=1.3,<2",
+    "playwright>=1.50,<2",
+    "httpx>=0.28,<1",
+    "sqlalchemy>=2.0.36,<3",
+    "alembic>=1.14,<2",
+    "faker>=33,<41",                 # Faker majors are frequent and data-only; cap reviewed on bump
+]
+
+[project.optional-dependencies]
+desktop = ["appium-python-client>=5,<7"]
+jsp = []                             # reserved: JSP builds on web + httpx today
+db-oracle = ["oracledb>=2.5,<27"]    # CalVer since 2024
+db-mssql = ["pyodbc>=5.2,<6"]
+db-mysql = ["pymysql>=1.1,<2"]
+db-postgres = ["pg8000>=1.31,<2"]    # BSD; never psycopg (LGPL) — ADR-0010 amendment 1
+history-postgres = ["pg8000>=1.31,<2"]
+history-mssql = ["pyodbc>=5.2,<6"]
+secrets-azure = ["azure-identity>=1.19,<2", "azure-keyvault-secrets>=4.9,<5"]
+secrets-hcv = ["hvac>=2.3,<3"]
+api-contract = ["openapi-core>=0.19,<1"]
+files = ["openpyxl>=3.1,<4", "pypdf>=5,<7"]
+export-parquet = ["pyarrow>=18,<26"]
+sinks-ado = ["azure-identity>=1.19,<2"]
+sinks-jira = []
+sinks-powerbi = ["msal>=1.31,<2"]
+sinks-teams = []
+evidence-blob = ["azure-storage-blob>=12.24,<13", "azure-identity>=1.19,<2"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9,<10",
+    "pytest-cov>=7,<8",
+    "mypy>=2.3,<3",
+    "ruff>=0.16,<0.17",              # linter rules change between minors: pin the minor
+    "import-linter>=2.15,<3",
+    "pre-commit>=4,<5",
+    "pre-commit-hooks>=6,<7",       # run as `python -m pre_commit_hooks.<hook>` (see .pre-commit-config.yaml)
+    "pip-audit>=2.9,<3",
+    "types-pyyaml>=6.0.12",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/paccaassure_taf"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/paccaassure_taf", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.uv]
+required-version = ">=0.9"
+default-groups = ["dev"]
+
+[tool.uv.workspace]
+# Core is the workspace root. examples/app-pack-demo and examples/variant-demo join in Phase 10.
+members = []
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "scripts", "tests"]
+mypy_path = "stubs"
+plugins = ["pydantic.mypy"]
+warn_unreachable = true
+warn_unused_ignores = true
+enable_error_code = [
+    "ignore-without-code",
+    "redundant-expr",
+    "truthy-bool",
+    "possibly-undefined",
+    "explicit-override",
+]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+src = ["src", "scripts", "tests"]
+extend-exclude = ["sandbox/web", "sandbox/jsp"]
+
+[tool.ruff.format]
+# Code blocks in Markdown are illustrative target-API snippets (docs/specs); keep them hand-formatted.
+exclude = ["*.md"]
+
+[tool.ruff.lint]
+preview = true
+explicit-preview-rules = true        # only the preview rules listed below, not all of preview
+select = [
+    "E", "W", "F", "I", "B", "UP", "N", "SIM", "PL", "ANN", "D", "T20", "TID", "S",
+    "PT", "RUF", "PTH", "DTZ", "C4", "ARG", "ERA", "PIE", "RET", "TC",
+]
+extend-select = ["PLW1514"]          # open() without encoding= (Windows cp1252 trap)
+ignore = [
+    "D105",    # magic methods need no docstring
+    "D107",    # __init__ documented on the class
+    "PLR0913", # too many arguments: typed keyword-only APIs are fine
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"time.sleep".msg = "Hard rule 5: no sleeps. Use Playwright auto-wait or paccaassure_taf.core.wait.until()."
+"os.environ".msg = "Read environment only via paccaassure_taf.core.config (PATAF_ settings)."
+"os.getenv".msg = "Read environment only via paccaassure_taf.core.config (PATAF_ settings)."
+"asyncio.sleep".msg = "Hard rule 5: no sleeps."
+
+[tool.ruff.lint.per-file-ignores]
+"src/paccaassure_taf/core/config/**" = ["TID251"]   # the one place allowed to read the environment
+"scripts/**" = ["T201", "S603", "S607", "TID251"]   # dev task runner: prints, runs tools, passes env through
+"tests/**" = ["S101", "S603", "D", "PLR2004", "PLC2701"]
+"stubs/**" = ["D", "N", "ANN401"]
+"sandbox/**" = ["D", "T201", "S104"]
+
+# ---------------------------------------------------------------- import-linter (ARCHITECTURE §3)
+[tool.importlinter]
+root_package = "paccaassure_taf"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+id = "runtime-stack"
+name = "Contract 1: runtime stack (higher may import lower, never the reverse)"
+type = "layers"
+containers = ["paccaassure_taf"]
+layers = [
+    "runner",
+    "bdd",
+    "flows",
+    "jsp",
+    "web | api | desktop",
+    "elements | data",
+    "evidence",
+    "results",
+    "core",
+]
+
+[[tool.importlinter.contracts]]
+id = "post-run-stack"
+name = "Contract 2: post-run stack"
+type = "layers"
+containers = ["paccaassure_taf"]
+layers = [
+    "runner",
+    "sinks | gates | reporting",
+    "history",
+    "results",
+    "core",
+]
+
+[[tool.importlinter.contracts]]
+id = "post-run-isolation"
+name = "Contract 3: post-run packages never import drivers, bdd, flows, elements, data or evidence"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.reporting",
+    "paccaassure_taf.history",
+    "paccaassure_taf.gates",
+    "paccaassure_taf.sinks",
+]
+forbidden_modules = [
+    "paccaassure_taf.bdd",
+    "paccaassure_taf.flows",
+    "paccaassure_taf.web",
+    "paccaassure_taf.jsp",
+    "paccaassure_taf.api",
+    "paccaassure_taf.desktop",
+    "paccaassure_taf.elements",
+    "paccaassure_taf.data",
+    "paccaassure_taf.evidence",
+]
+
+[[tool.importlinter.contracts]]
+id = "runtime-isolation"
+name = "Contract 5: runtime packages never import post-run packages"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.bdd",
+    "paccaassure_taf.flows",
+    "paccaassure_taf.jsp",
+    "paccaassure_taf.web",
+    "paccaassure_taf.api",
+    "paccaassure_taf.desktop",
+    "paccaassure_taf.elements",
+    "paccaassure_taf.data",
+    "paccaassure_taf.evidence",
+    "paccaassure_taf.results",
+    "paccaassure_taf.core",
+]
+forbidden_modules = [
+    "paccaassure_taf.reporting",
+    "paccaassure_taf.history",
+    "paccaassure_taf.gates",
+    "paccaassure_taf.sinks",
+]
+
+[[tool.importlinter.contracts]]
+id = "playwright-only-in-web"
+name = "Contract 4a: only web and jsp import playwright"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.core", "paccaassure_taf.results", "paccaassure_taf.evidence",
+    "paccaassure_taf.elements", "paccaassure_taf.data", "paccaassure_taf.api",
+    "paccaassure_taf.desktop", "paccaassure_taf.flows", "paccaassure_taf.bdd",
+    "paccaassure_taf.reporting", "paccaassure_taf.history", "paccaassure_taf.gates",
+    "paccaassure_taf.sinks", "paccaassure_taf.runner",
+]
+forbidden_modules = ["playwright"]
+
+[[tool.importlinter.contracts]]
+id = "appium-only-in-desktop"
+name = "Contract 4b: only desktop imports appium"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.core", "paccaassure_taf.results", "paccaassure_taf.evidence",
+    "paccaassure_taf.elements", "paccaassure_taf.data", "paccaassure_taf.api",
+    "paccaassure_taf.web", "paccaassure_taf.jsp", "paccaassure_taf.flows",
+    "paccaassure_taf.bdd", "paccaassure_taf.reporting", "paccaassure_taf.history",
+    "paccaassure_taf.gates", "paccaassure_taf.sinks", "paccaassure_taf.runner",
+]
+forbidden_modules = ["appium"]
+
+[[tool.importlinter.contracts]]
+id = "behave-only-in-bdd"
+name = "Contract 4c: only bdd and runner import behave"
+type = "forbidden"
+source_modules = [
+    "paccaassure_taf.core", "paccaassure_taf.results", "paccaassure_taf.evidence",
+    "paccaassure_taf.elements", "paccaassure_taf.data", "paccaassure_taf.api",
+    "paccaassure_taf.web", "paccaassure_taf.jsp", "paccaassure_taf.desktop",
+    "paccaassure_taf.flows", "paccaassure_taf.reporting", "paccaassure_taf.history",
+    "paccaassure_taf.gates", "paccaassure_taf.sinks",
+]
+forbidden_modules = ["behave"]
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+xfail_strict = true
+filterwarnings = ["error"]
+
+[tool.coverage.run]
+source = ["paccaassure_taf"]
+branch = true

@@ -31,8 +31,16 @@
 - Layer: `@web` `@jsp` `@api` `@desktop` `@db` `@file`
 - Traceability: `@tms:ADO-<id>` | `@tms:JIRA-<KEY>`, `@req:<id>`, `@id:<stable-test-id>` (keeps history across renames)
 - Ownership: `@owner:<team>` (report + history dimension)
+- Risk: `@risk:low` | `@risk:medium` | `@risk:high` (report filter + history dimension; enables risk-based selection such as `--tags "@risk:high"`)
 - Control: `@wip` (never in CI), `@retryable`, `@serial`, `@db-write`, `@a11y`, `@har`, `@known-issue:<id>`
 - Env constraints: `@env:uat` / `@not-env:prod`
 
+## Cross-platform (Windows is a first-class dev platform)
+- Open every text file with `encoding="utf-8"` (ruff `PLW1514`); use `pathlib`, never string path concatenation.
+- Generated filenames: no `:`; slugify + short hash (avoids reserved names like `CON`/`NUL` and MAX_PATH issues). Run ids look like `20260924T101500Z-ab12cd`.
+- Line endings are LF in the repo (`.gitattributes`), except `*.ps1`/`*.cmd`/`*.bat` (CRLF).
+- Dev and CI tasks are Python (`scripts/dev.py`), never bash-only or PowerShell-only one-liners.
+- Invoke Python tools as `python -m <module>` (or `python -c` for tools without `__main__`), never through console-script `.exe` launchers: endpoint security on managed Windows machines blocks unsigned launchers in user-writable paths (`.venv\Scripts`, pre-commit's cache) with "Access is denied". For the same reason pre-commit hooks are all `repo: local` running from the locked uv environment.
+
 ## Git
-Conventional commits; branch `feature/<ticket>-<slug>`; PR template requires: spec updated? catalog regenerated? tests added? CHANGELOG?
+Conventional commits. Branches: `main` (released), `develop` (integration), `feature/<ticket>-<slug>` from `develop` (ADR-0003). PR template requires: spec updated? catalog regenerated? tests added? CHANGELOG?

@@ -1,0 +1,14 @@
+TODO-LEGAL: Placeholder proprietary notice. Replace with the final license text
+approved by legal before any external distribution.
+
+PaccaAssureTAF (paccaassure-taf-core)
+
+Copyright (c) 2026 [LEGAL ENTITY]. All rights reserved.
+
+This software and associated documentation are proprietary and confidential.
+No part of it may be used, copied, modified, merged, published, distributed,
+sublicensed or sold, in whole or in part, except under the terms of a written
+license agreement with [LEGAL ENTITY].
+
+Third-party components are licensed under their own terms; see the SBOM shipped
+with each release.
