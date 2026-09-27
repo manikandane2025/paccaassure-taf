@@ -1,0 +1,29 @@
+# Northwind Health sandbox API: never ships. Its own lock and license check (ADR-0010).
+[project]
+name = "northwind-sandbox-api"
+version = "1.0.0"
+description = "Northwind Health sandbox JSON API (synthetic data) for PaccaAssureTAF e2e scenarios."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "pg8000>=1.31,<2",     # BSD; never psycopg (LGPL)
+]
+
+[dependency-groups]
+dev = ["mypy>=2.3,<3"]
+
+[tool.uv]
+package = false
+
+# Standard mypy, not --strict (BUILD_PLAN Phase 0: sandbox Python).
+[tool.mypy]
+python_version = "3.12"
+files = ["northwind_api"]
+check_untyped_defs = true
+warn_unused_ignores = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["pg8000", "pg8000.*"]
+ignore_missing_imports = true

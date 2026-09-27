@@ -32,5 +32,24 @@ services:
       retries: 30
       start_period: 5s
 
+  api:
+    build: ./api
+    environment:
+      NWH_DB_HOST: postgres
+      NWH_DB_PASSWORD: ${NWH_SANDBOX_DB_APP_PASSWORD:-pw-Northwind-app}
+      NWH_TOKEN_SECRET: ${NWH_SANDBOX_TOKEN_SECRET:-ts-Northwind-signing-key}
+      NWH_TOKEN_TTL_SECONDS: ${NWH_SANDBOX_TOKEN_TTL_SECONDS:-3600}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${NWH_SANDBOX_API_PORT:-18083}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 3s
+      timeout: 5s
+      retries: 20
+      start_period: 5s
+
 volumes:
   pgdata:
