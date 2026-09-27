@@ -51,5 +51,19 @@ services:
       retries: 20
       start_period: 5s
 
+  web:
+    build: ./web
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${NWH_SANDBOX_WEB_PORT:-18081}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+      start_period: 3s
+
 volumes:
   pgdata:

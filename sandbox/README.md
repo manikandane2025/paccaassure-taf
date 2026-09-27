@@ -15,6 +15,8 @@ Every port binds to `127.0.0.1` only. Settings live in `sandbox/.env`, which is 
 
 | Service | Default | Variable |
 |---|---|---|
+| Web app (nginx + Vite/Preact SPA) | 18081 | `NWH_SANDBOX_WEB_PORT` |
+| *(reserved: Tomcat JSP app, Phase 6)* | 18082 | `NWH_SANDBOX_JSP_PORT` |
 | JSON API (FastAPI) | 18083 | `NWH_SANDBOX_API_PORT` |
 | Postgres 16 (`northwind`, `pataf_history`) | 15433 | `NWH_SANDBOX_DB_PORT` |
 
@@ -78,3 +80,18 @@ Details:
 | `locked` | `pw-Northwind-locked` | locked account (`423`) |
 | `nwh-batch` (client) | `cs-Northwind-batch` | EXAMINER |
 | `nwh-reporter` (client) | `cs-Northwind-reporter` | VIEWER |
+
+## Web app (`web/`)
+A Vite + Preact + TypeScript single-page app served by nginx at `http://127.0.0.1:18081`. nginx proxies `/api/` to the API, so pages and the API share one origin. `GET /healthz` is the liveness check. Use the sign-in accounts above. Sessions are per tab (`sessionStorage`), so each browser context signs in on its own.
+
+| Page | What it exercises |
+|---|---|
+| `/login` | labelled Username/Password, `Sign in` button; errors `data-testid="login-error"` (wrong password, locked account); `?next=` deep-link return; an expired or invalid token redirects here with "Your session has expired…" (`login-notice`) |
+| `/members` | `role=search` form: Member ID (format check), Last name, First name, Date of birth (`type=date`), **Status** and **Plan** `<select>`s, `Search`/`Clear`. Results `data-testid="member-results"` table (rows `member-row` with `data-member-id`), `result-summary`, `Rows per page` select, `Previous page`/`Next page` + `page-indicator`, empty state `no-results`, `Export CSV` (download `members.csv`). The criteria live in the URL (back/forward, deep links) |
+| `/members/{id}` | name/id/status badge; **tabs** (`role=tablist`, arrow keys): Overview (`dl`, masked SSN with `Show SSN` toggle), `Claims (n)` (`claims-table`), Plan (`Open plan brochure` → **new tab**). ADMIN/EXAMINER: `Edit member`, `Deactivate member` → **modal `<dialog>`** (`Deactivate`/`Cancel`) → toast `Member deactivated.` |
+| `/members/{id}/edit` | form with labels, client validation (`aria-invalid`, `aria-describedby`, error summary `error-summary`), server `422` mapped to fields, `409` conflict with `Reload`, `Save changes` → toast `Member updated.`; VIEWER sees "You don't have permission…" |
+| `/plans/{code}` | public brochure page (the new-tab target) |
+
+- `?delay_ms=N` on any page URL slows every API call for the rest of the tab session. Use it for loading states and auto-wait tests; `?delay_ms=0` turns it off. A loading indicator is `data-testid="loading"` with `role=status`.
+- Dates render as ISO `yyyy-mm-dd`; money renders as `$1,234.56`.
+- Local development without Docker: `npm install`, then `npm run dev` in `web/` (proxies `/api` to the API port 18083).
