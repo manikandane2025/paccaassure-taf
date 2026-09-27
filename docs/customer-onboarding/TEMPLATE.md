@@ -36,6 +36,7 @@ Managed Windows machines (AppLocker / WDAC / EDR) often block **unsigned executa
 | Console-script launchers runnable (`uv run pytest --version`) | |
 | `python -m` entry points runnable | |
 | Docker available for gitleaks / sandbox | |
+| Playwright bundled Chromium downloads and launches (`uv run python -m playwright install chromium`); else use `browser: msedge` | |
 
 ## Migration waves
 | Wave | Scope | Legacy stack | Classification counts (Reuse/Refactor/Rebuild/Retire/Blocked) |

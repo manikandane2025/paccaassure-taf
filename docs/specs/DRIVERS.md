@@ -4,7 +4,11 @@ All drivers sit behind `paccaassure_taf.elements` and are created lazily by `Dri
 
 ## Web — `paccaassure_taf.web` (Playwright, sync)
 - One `Browser` per worker; one `BrowserContext` per scenario (isolation); pages tracked per context.
-- Config: browser (chromium/firefox/webkit/msedge), headless, viewport, base_url, locale, timezone, timeouts, `storage_state` per role (login once per worker, reuse per scenario), `block_resources: [image, font, media]` (optional speed-up; never blocks documents/scripts/XHR).
+- **Browser selection (decided 2026-09-26, built in Phase 2a):** `WebConfig.browser: BrowserName` = `chromium | msedge | firefox | webkit` plus optional `channel: str | None` (a Playwright channel such as `chrome`, `msedge`, `msedge-beta`).
+  - `msedge` means the Chromium engine with channel `msedge`: the installed Microsoft Edge, so nothing is downloaded. `chromium` with no channel means Playwright's bundled Chromium (`python -m playwright install chromium`).
+  - `channel` is valid only with `chromium`/`msedge`. With `firefox`/`webkit` it is a config error that names the key and the layer.
+  - Default when `browser` is unset: **`msedge` locally on Windows**; **bundled `chromium` in CI or in a container** (the runner image). The resolved value and its reason show in `pataf config show --resolved` and in the run's environment metadata.
+- Config: headless, viewport, base_url, locale, timezone, timeouts, `storage_state` per role (login once per worker, reuse per scenario), `block_resources: [image, font, media]` (optional speed-up; never blocks documents/scripts/XHR).
 - Features: auth state caching by `UserRole`, network interception helpers (`w.app.network.mock(...)`, wait-for-response), downloads/uploads, multi-tab, dialogs, accessibility snapshot check (axe via injected script, optional `@a11y` tag).
 - Evidence: Playwright trace on failure (`retain-on-failure`), screenshot on failure + on `w.evidence.capture("name")`, optional video, HAR on `@har`.
 - Remote: support `connect` to a Playwright server / cloud grid by config.

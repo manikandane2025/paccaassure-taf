@@ -20,13 +20,22 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - **Status (2026-09-24): acceptance met** — core coverage 98.4% (gate: `dev.py coverage`); masking proven by tests incl. logs, tracebacks, config errors; config errors name key + source layer; expired/missing/invalid license → degraded `LicenseStatus`, never raises. `pataf config show` works as `python -m paccaassure_taf`.
 
 ## Phase 2 — Results model + elements + web + typed BDD
+**Split into two checkpoints (decided 2026-09-26):** 2a and 2b, each on its own branch from `develop`, merged back `--no-ff` at its checkpoint. 2b starts only after 2a's acceptance passes.
+
+### Phase 2a — Results model + elements + web driver
 - `paccaassure_taf.results`: event and aggregate models, JSON Schema export, event writer, merger, `run.json`.
 - `By`, typed elements (emit sub-action events), `expect`, `WebPage`/`WebComponent`, `Table[T]`.
+- `paccaassure_taf.web`: driver sessions (one `Browser` per worker, one `BrowserContext` per scenario), `WebConfig` with `browser: chromium | msedge | firefox | webkit` + `channel` (DRIVERS "Browser selection": default `msedge` locally on Windows, bundled `chromium` in CI/Docker).
+- ✅ Element and page tests run against the sandbox web app (http://127.0.0.1:18081); the mypy "should-fail" test proves invalid element actions are type errors; results validate against the exported JSON Schema.
+
+### Phase 2b — Typed BDD + runner v1 + doctor
 - `paccaassure_taf.bdd`: typed decorators, `World[S]` (finalize the multi-pack scenario-store combination rule; amend ADR-0002), annotation-driven parse types, `Table[Model]` with `${…}` scenario references, hooks writing events, `w.evidence.record` → `StepResult.outputs`.
 - Runner v1: `pataf run`, `--dry-run`, tags, env; `summary.md/json`.
-- `pataf doctor` v1 scope: Python/uv versions, Playwright browsers installed for the pinned version, config resolves, license file, and **locked-down endpoint detection** — try launching a console-script `.exe` from the environment's scripts dir vs. `python -m`; on "Access is denied" report "unsigned launchers blocked by endpoint policy; use `python -m` entry points" (see customer-onboarding TEMPLATE, "Locked-down Windows endpoints").
+- `pataf doctor` v1 scope: Python/uv versions, config resolves, license file, and:
+  - **Browser availability:** for the resolved `browser`/`channel`, the bundled browser is installed for the pinned Playwright version, or the channel's installed browser launches. Fix hints: `python -m playwright install chromium`, or `browser: msedge`.
+  - **Locked-down endpoint detection:** try a console-script `.exe` from the environment's scripts dir vs. `python -m`. On "Access is denied", report "unsigned launchers blocked by endpoint policy; use `python -m` entry points" (see customer-onboarding TEMPLATE, "Locked-down Windows endpoints"). Also report a browser download or launch blocked by policy.
 - **Performance check (masking):** a benchmark test with a `Masker` holding 10,000 learned values (+ pinned secrets and config patterns) shows logging/event-writing overhead within the ARCHITECTURE §6 budget (event writing < 5% of runtime; framework overhead < 300 ms/scenario). Measure both `scrub()` per log line and `register()` of a *new* learned value (it rebuilds the combined regex). If over budget, switch the value matcher (e.g. Aho-Corasick / incremental rebuild) and/or lower `masking.max_learned_values` (default 10,000).
-- ✅ 10 sandbox web scenarios produce valid `run.json` (schema-validated); wrong element action fails mypy (should-fail test); dry-run resolves all steps; masking performance check within budget.
+- ✅ 10 sandbox scenarios pass via `python -m paccaassure_taf run`; dry-run resolves all steps; masking performance check within budget.
 
 ## Phase 3 — Report UI v1
 - `report-ui/` (TS strict, Vite, single-file build), generated TS types from JSON Schema, Overview / Tests / Test detail / Failures views, evidence viewer, white-label theme, `pataf report build/open`, shard merge.

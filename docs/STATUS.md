@@ -2,8 +2,8 @@
 
 > Read first in every new session. Keep under 80 lines. Update at every checkpoint.
 
-**Phase:** 0 and 1 **done and merged into `develop`** (2026-09-25). **Sandbox done on `feature/sandbox`** (2026-09-26, 5 commits, not merged, not pushed): at its checkpoint, awaiting user review. **Next:** user OK → merge `feature/sandbox` into `develop` (`--no-ff`) → Phase 2 on `feature/phase-2-…` from `develop`.
-**Branching:** each phase branches from `develop` and merges back `--no-ff` at its checkpoint. The user pushes; the agent never pushes.
+**Phase:** 0, 1 and the sandbox are **done and merged into `develop`** (sandbox merged `--no-ff` 2026-09-26; not pushed). **Next: Phase 2a** (BUILD_PLAN). Phase 2 is split into two checkpoints, **2a** then **2b**, and 2b starts only after 2a's acceptance passes.
+**Branching:** each phase branches from `develop` and merges back `--no-ff` at its checkpoint. Next branch: `feature/phase-2a-results-elements-web` from `develop`. The user pushes; the agent never pushes.
 **CI is last priority (user):** it has not run on GitHub. Don't spend effort on it until asked.
 
 ## Open items (owner: user)
@@ -36,7 +36,15 @@ Ports on 127.0.0.1 (**changed from 8081/8083/5433**, which are taken on this mac
 - Web (Vite 8 + Preact + TS 7, nginx proxies `/api/`): login, search, paging, tabs, dialog, edit form, CSV download, new tab. Verified end to end with Playwright (Edge channel).
 - Commits: postgres seed · JSON API · web app · `dev.py` sandbox tasks · docs.
 **Phase 6 prerequisite (not built):** the Tomcat JSP app (spec in BUILD_PLAN Phase 6), port 18082.
-**Phase 2 next:** results model, elements, web, typed BDD, runner v1, `pataf doctor`, masking perf check. The 10 sandbox web scenarios run against http://127.0.0.1:18081.
+The sandbox containers may already be running: `uv run python scripts/dev.py sandbox-smoke` checks them, and `sandbox-up` starts them.
+
+## Next: Phase 2a (results model + elements + web driver)
+Read first: `docs/specs/TYPED_AUTHORING.md`, `docs/specs/REPORTING.md` (event model), `docs/specs/DRIVERS.md` (Web, **Browser selection**), ARCHITECTURE §3/§6, `src/paccaassure_taf/{results,elements,web}/CLAUDE.md`. State a 5–10 line plan before coding.
+- `results`: event and aggregate models, JSON Schema export, event writer, merger, `run.json`. The schema is a public contract (hard rule 8).
+- `By`, typed elements (emit sub-action events), `expect`, `WebPage`/`WebComponent`, `Table[T]`.
+- `web`: driver sessions (a `Browser` per worker, a `BrowserContext` per scenario). `WebConfig`: `browser: chromium | msedge | firefox | webkit` + `channel`. Default **`msedge` locally on Windows** (no download), bundled **`chromium` in CI/Docker**. `channel` is only valid with chromium/msedge.
+- **Acceptance 2a:** element and page tests run against the sandbox web app (http://127.0.0.1:18081, `data-testid`s in `sandbox/README.md`); the mypy "should-fail" test proves invalid element actions are type errors; results validate against the exported schema.
+- **Then 2b** (separate checkpoint): typed BDD (`World[S]`, parse types, `Table[Model]`, event-writing hooks), runner v1 (`pataf run`, `--dry-run`, tags, env, `summary.md/json`), `pataf doctor` (blocked-launcher and browser-availability checks), masking performance check. Acceptance: 10 sandbox scenarios pass via `python -m paccaassure_taf run`; dry-run resolves all steps.
 
 ## Environment quirks (this dev machine)
 - **uv PATH:** shims `C:\Users\manikandane\bin\uv` (bash) and `uv.cmd` (cmd/PowerShell) forward to the winget install.
@@ -44,6 +52,6 @@ Ports on 127.0.0.1 (**changed from 8081/8083/5433**, which are taken on this mac
 - Don't use `sed` or heredoc-embedded Python for text containing backslashes (Windows paths, regexes); use the Edit tool.
 - **PowerShell 5.1** is the user's shell (no `&&`); documented commands are cross-shell. `.gitattributes` keeps LF.
 - Docker Desktop 27 (Linux engine); the pre-commit gitleaks hook needs Docker running.
-- **Playwright browsers not installed** (`playwright install` never run). Edge works via `channel="msedge"`; `pataf doctor` (Phase 2) should report missing browsers.
+- **Playwright 1.63.0 browsers (2026-09-26):** `uv run python -m playwright install chromium` **succeeded** (Chrome for Testing 153.0.8010.12 + headless shell, about 310 MiB, in `%LOCALAPPDATA%\ms-playwright`). It launches headless and headed, and is **not** blocked by endpoint policy. The Edge channel (152.0.4191.66) launches too. Firefox/WebKit are not installed.
 - **`sandbox/.env` is agent-read-denied** (`.claude/settings.json`), and so is `.env.*`: edit `sandbox/env.example`, never read the user's `.env`.
 - Ports already taken here: 3000, 5433 (native Postgres service), 5434, 8000, 8002, 8081. Check with `netstat -ano | findstr :<port>`.
