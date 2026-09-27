@@ -10,6 +10,7 @@ Each phase ends with a PR, green CI, updated docs/catalog, and the listed accept
 - ✅ mypy, ruff, lint-imports, license check pass; sandbox apps serve.
 - **Sequencing decision (2026-09-24):** the sandbox item moved after Phase 1. Phase 1 is pure Python with unit tests only (hard-rule-10 exemption), so it has no sandbox dependency; the sandbox **must** be complete before Phase 2 starts (Phase 2 acceptance needs 10 sandbox web scenarios). All other Phase 0 items are done (Checkpoint 1, `docs/STATUS.md`). CI green on GitHub is last priority.
 - **Sandbox split (2026-09-25):** build now only what Phases 2–5 need — Postgres seed (`northwind` + `pataf_history`), the JSON API, the web app, and `dev.py` sandbox tasks. The **Tomcat JSP app moved to the Phase 6 prerequisites** (below).
+- **Status (2026-09-26): sandbox done** (branch `feature/sandbox`): Postgres seed, JSON API, web app and `dev.py sandbox-*` tasks. `sandbox-up` → all 3 containers healthy, 4/4 smoke probes pass; sandbox licenses: 23 Python + 62 npm packages, 0 violations. Ports moved off 8081/8083/5433 (taken on the dev machine) to 18081/18083/15433 (18082 reserved for JSP), configurable in `sandbox/.env`.
 
 ## Phase 1 — Core
 - Layered typed config + `pataf config show`; SecretRef + env/Key Vault providers; structlog with masking; `Sensitive[T]` (in `core.masking`); errors; `wait.until`; plugin registry (incl. `ConnectionProvider`); license verification module (entry-point only, test keys).

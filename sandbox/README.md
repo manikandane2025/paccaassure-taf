@@ -7,6 +7,7 @@ All data is synthetic, and nothing here ships to customers.
 uv run python scripts/dev.py sandbox-up       # build + start + wait for healthy + smoke probe per app
 uv run python scripts/dev.py sandbox-smoke    # probe again
 uv run python scripts/dev.py sandbox-down     # stop and remove containers and the data volume
+uv run python scripts/dev.py sandbox-typecheck sandbox-licenses   # standard mypy; Python + npm license allow-list
 docker compose -f sandbox/compose.yaml up -d --build --wait    # plain compose also works
 ```
 
