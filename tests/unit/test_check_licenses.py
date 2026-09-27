@@ -101,3 +101,46 @@ def test_free_text_is_normalized_before_evaluation() -> None:
     assert check_licenses.normalize("MIT License") == "MIT"
     dist = _FakeDist("c", License="MIT License")
     assert check_licenses.license_of(dist) == ("MIT", "License")
+
+
+NPM_LOCK = """{
+  "name": "demo", "lockfileVersion": 3,
+  "packages": {
+    "": {"name": "demo", "license": "UNLICENSED"},
+    "node_modules/preact": {"version": "10.29.8", "license": "MIT"},
+    "node_modules/@scope/tool": {"version": "1.0.0", "license": "(MIT OR GPL-3.0-only)"},
+    "node_modules/nolicense": {"version": "0.1.0"},
+    "node_modules/copyleft": {"version": "2.0.0", "license": "GPL-3.0-only"},
+    "node_modules/a/node_modules/preact": {"version": "10.29.8", "license": "MIT"},
+    "packages/linked": {"link": true, "resolved": "../linked"}
+  }
+}"""
+
+
+def test_npm_packages_skip_root_links_and_duplicates() -> None:
+    packages = check_licenses.npm_packages(NPM_LOCK)
+    assert [(p.name, p.license) for p in packages] == [
+        ("@scope/tool", "(MIT OR GPL-3.0-only)"),
+        ("copyleft", "GPL-3.0-only"),
+        ("nolicense", "UNKNOWN"),
+        ("preact", "MIT"),
+    ]
+
+
+def test_check_npm_uses_the_same_policy() -> None:
+    policy = check_licenses.Policy(allowed=ALLOWED, skip=frozenset())
+    verdicts = {
+        v.name: v.allowed for v in check_licenses.check_npm(check_licenses.npm_packages(NPM_LOCK), policy)
+    }
+    assert verdicts == {"@scope/tool": True, "copyleft": False, "nolicense": False, "preact": True}
+
+
+def test_sandbox_web_lockfile_passes_the_real_policy() -> None:
+    lock = SCRIPT.parents[1] / "sandbox" / "web" / "package-lock.json"
+    policy = check_licenses.Policy.load(check_licenses.DEFAULT_POLICY)
+    failures = [
+        v
+        for v in check_licenses.check_npm(check_licenses.npm_packages(lock.read_text("utf-8")), policy)
+        if not v.allowed
+    ]
+    assert failures == []
