@@ -4,15 +4,19 @@ Inspects every distribution installed in the active environment (run after
 ``uv sync --all-extras`` so extras and dev tools are included) and evaluates its
 license against ``scripts/license_policy.toml``. SPDX expressions are honoured:
 ``A OR B`` passes if any option is allowed, ``A AND B`` only if all are.
+With ``--npm-lock`` it checks the packages of an npm ``package-lock.json`` instead
+(the sandbox web app, ADR-0010: sandbox dependencies are checked separately).
 
 Example:
     uv run python scripts/check_licenses.py
     uv run python scripts/check_licenses.py --policy scripts/license_policy.toml --verbose
+    uv run python scripts/check_licenses.py --npm-lock sandbox/web/package-lock.json
 """
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 import sys
 import tomllib
@@ -213,6 +217,16 @@ def license_of(dist: Distribution) -> tuple[str, str]:
     return "UNKNOWN", "none"
 
 
+def _verdict(name: str, version: str, license_text: str, source: str, policy: Policy) -> Verdict:
+    exception = policy.exceptions.get(_canonical(name))
+    if exception is not None:
+        license_text = str(exception.get("license", license_text))
+        reason = str(exception.get("reason", ""))
+        ok = bool(exception.get("approved", False)) or evaluate(license_text, policy.allowed)
+        return Verdict(name, version, license_text, "exception", ok and bool(reason), reason)
+    return Verdict(name, version, license_text, source, evaluate(license_text, policy.allowed))
+
+
 def check(dists: Iterable[Distribution], policy: Policy) -> list[Verdict]:
     """Evaluate every distribution against the policy.
 
@@ -226,18 +240,52 @@ def check(dists: Iterable[Distribution], policy: Policy) -> list[Verdict]:
         if key in policy.skip or key in verdicts:
             continue
         license_text, source = license_of(dist)
-        exception = policy.exceptions.get(key)
-        if exception is not None:
-            license_text = str(exception.get("license", license_text))
-            source = "exception"
-            reason = str(exception.get("reason", ""))
-            ok = bool(exception.get("approved", False)) or evaluate(license_text, policy.allowed)
-            verdicts[key] = Verdict(name, dist.version, license_text, source, ok and bool(reason), reason)
-            continue
-        verdicts[key] = Verdict(
-            name, dist.version, license_text, source, evaluate(license_text, policy.allowed)
-        )
+        verdicts[key] = _verdict(name, dist.version, license_text, source, policy)
     return sorted(verdicts.values(), key=lambda v: _canonical(v.name))
+
+
+@dataclass(frozen=True)
+class NpmPackage:
+    """One package from an npm lockfile (``package-lock.json`` v2/v3 ``packages`` map)."""
+
+    name: str
+    version: str
+    license: str
+
+
+def npm_packages(lock_text: str) -> list[NpmPackage]:
+    """Parse every installed package (including optional platform binaries) from a lockfile.
+
+    The root project entry (key ``""``) is our own code and is skipped. A missing or
+    non-string ``license`` becomes ``UNKNOWN`` (which fails).
+
+    Example:
+        npm_packages(Path("sandbox/web/package-lock.json").read_text(encoding="utf-8"))
+    """
+    data = json.loads(lock_text)
+    packages: dict[str, NpmPackage] = {}
+    for path, entry in data.get("packages", {}).items():
+        if not path or entry.get("link"):
+            continue
+        name = str(entry.get("name") or path.rsplit("node_modules/", 1)[-1])
+        license_value = entry.get("license")
+        license_text = license_value.strip() if isinstance(license_value, str) else "UNKNOWN"
+        version = str(entry.get("version", "?"))
+        packages.setdefault(f"{name}@{version}", NpmPackage(name, version, license_text or "UNKNOWN"))
+    return sorted(packages.values(), key=lambda p: (p.name, p.version))
+
+
+def check_npm(packages: Iterable[NpmPackage], policy: Policy) -> list[Verdict]:
+    """Evaluate npm packages against the same policy as Python distributions.
+
+    Example:
+        check_npm([NpmPackage("preact", "10.29.8", "MIT")], Policy.load(DEFAULT_POLICY))
+    """
+    return [
+        _verdict(package.name, package.version, normalize(package.license), "package-lock", policy)
+        for package in packages
+        if _canonical(package.name) not in policy.skip
+    ]
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -249,15 +297,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Third-party license allow-list check (ADR-0010).")
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
     parser.add_argument("--verbose", action="store_true", help="list every distribution, not only failures")
+    parser.add_argument("--npm-lock", type=Path, help="check this npm package-lock.json instead of Python")
     args = parser.parse_args(argv)
     policy = Policy.load(args.policy)
-    verdicts = check(distributions(), policy)
+    if args.npm_lock is not None:
+        verdicts = check_npm(npm_packages(args.npm_lock.read_text(encoding="utf-8")), policy)
+    else:
+        verdicts = check(distributions(), policy)
     failures = [v for v in verdicts if not v.allowed]
     for verdict in verdicts if args.verbose else failures:
         mark = "ok  " if verdict.allowed else "FAIL"
         note = f"  ({verdict.note})" if verdict.note else ""
         print(f"{mark} {verdict.name}=={verdict.version}  [{verdict.license}]  via {verdict.source}{note}")
-    print(f"\n{len(verdicts)} distributions checked, {len(failures)} violation(s).")
+    kind = "npm packages" if args.npm_lock is not None else "distributions"
+    print(f"\n{len(verdicts)} {kind} checked, {len(failures)} violation(s).")
     if failures:
         print(
             "Fix: replace the dependency, or (only after review) add it under [exceptions] "

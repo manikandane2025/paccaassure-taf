@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 import sysconfig
@@ -26,6 +27,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+SANDBOX_DIR = REPO_ROOT / "sandbox"
 
 
 def tool(name: str) -> str:
@@ -116,10 +118,14 @@ def _licenses() -> list[list[str]]:
     return [[sys.executable, str(REPO_ROOT / "scripts" / "check_licenses.py")]]
 
 
+def _uv() -> str:
+    return os.environ.get("UV", "uv")  # `uv run` exports UV=<path to uv>
+
+
 def _audit() -> list[list[str]]:
     # Audit the locked, fully pinned dependency set (all extras) without needing pip in the venv.
     requirements = REPO_ROOT / ".pataf-audit-requirements.txt"
-    uv = os.environ.get("UV", "uv")  # `uv run` exports UV=<path to uv>
+    uv = _uv()
     return [
         [uv, "export", "--frozen", "--all-extras", "--no-emit-project", "--quiet",
          "--output-file", str(requirements)],
@@ -165,6 +171,67 @@ def _secrets_staged() -> list[list[str]]:
     return [_gitleaks("git", "/repo", "--pre-commit", "--staged")]
 
 
+def sandbox_compose(*args: str) -> list[str]:
+    """Build a ``docker compose`` command for the Northwind Health sandbox.
+
+    Example:
+        sandbox_compose("ps")  # -> ["docker", "compose", "-f", ".../sandbox/compose.yaml", "ps"]
+    """
+    return ["docker", "compose", "-f", str(SANDBOX_DIR / "compose.yaml"), *args]
+
+
+def ensure_sandbox_env(sandbox_dir: Path = SANDBOX_DIR) -> bool:
+    """Create ``sandbox/.env`` from ``sandbox/env.example`` if missing; never overwrite local edits.
+
+    Returns True if the file was created.
+
+    Example:
+        ensure_sandbox_env()  # first run: copies env.example -> .env and returns True
+    """
+    env_file = sandbox_dir / ".env"
+    if env_file.exists():
+        return False
+    shutil.copyfile(sandbox_dir / "env.example", env_file)
+    print("Created sandbox/.env from sandbox/env.example; edit it to change ports (it is gitignored).")
+    return True
+
+
+def _sandbox_smoke() -> list[list[str]]:
+    return [[sys.executable, str(REPO_ROOT / "scripts" / "sandbox_smoke.py")]]
+
+
+def _sandbox_up() -> list[list[str]]:
+    ensure_sandbox_env()
+    return [sandbox_compose("up", "-d", "--build", "--wait", "--wait-timeout", "300"), *_sandbox_smoke()]
+
+
+def _sandbox_down() -> list[list[str]]:
+    # -v removes the data volume: the next sandbox-up reseeds from sandbox/postgres/initdb.
+    return [sandbox_compose("down", "-v", "--remove-orphans")]
+
+
+def _sandbox_api(*args: str) -> list[str]:
+    # The sandbox API is its own uv project (sandbox/api/uv.lock, sandbox/api/.venv).
+    return [_uv(), "run", "--project", str(SANDBOX_DIR / "api"), "--frozen", "python", *args]
+
+
+def _sandbox_typecheck() -> list[list[str]]:
+    # Standard mypy (not --strict) for sandbox Python. The web app's tsc runs in its image build.
+    api = SANDBOX_DIR / "api"
+    return [
+        _sandbox_api("-m", "mypy", "--config-file", str(api / "pyproject.toml"), str(api / "northwind_api"))
+    ]
+
+
+def _sandbox_licenses() -> list[list[str]]:
+    # ADR-0010: sandbox dependencies never ship but are checked too, separately from core.
+    checker = str(REPO_ROOT / "scripts" / "check_licenses.py")
+    return [
+        _sandbox_api(checker),
+        [sys.executable, checker, "--npm-lock", str(SANDBOX_DIR / "web" / "package-lock.json")],
+    ]
+
+
 TASKS: dict[str, Task] = {
     task.name: task
     for task in (
@@ -180,6 +247,11 @@ TASKS: dict[str, Task] = {
         Task("hooks", "all pre-commit hooks on all files", _hooks),
         Task("secrets", "gitleaks over full git history (Docker; CI)", _secrets),
         Task("secrets-staged", "gitleaks over staged changes (Docker; pre-commit)", _secrets_staged),
+        Task("sandbox-up", "build + start the sandbox, wait until healthy, smoke-probe it", _sandbox_up),
+        Task("sandbox-smoke", "container health + one probe per sandbox app", _sandbox_smoke),
+        Task("sandbox-down", "stop the sandbox and delete its data volume", _sandbox_down),
+        Task("sandbox-typecheck", "standard mypy on the sandbox API", _sandbox_typecheck),
+        Task("sandbox-licenses", "license allow-list for sandbox Python + npm deps", _sandbox_licenses),
     )
 }
 
@@ -227,8 +299,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         main(["check"])
     """
     choices = [*TASKS, "check"]
-    epilog = "\n".join(f"  {t.name:<14} {t.help}" for t in TASKS.values())
-    epilog += f"\n  {'check':<14} {' + '.join(CHECK_SEQUENCE)} (what CI runs)"
+    epilog = "\n".join(f"  {t.name:<17} {t.help}" for t in TASKS.values())
+    epilog += f"\n  {'check':<17} {' + '.join(CHECK_SEQUENCE)} (what CI runs)"
     parser = argparse.ArgumentParser(
         prog="dev.py",
         description="PaccaAssureTAF dev/CI tasks (ADR-0014).",

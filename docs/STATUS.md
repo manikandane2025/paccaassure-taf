@@ -2,8 +2,8 @@
 
 > Read first in every new session. Keep under 80 lines. Update at every checkpoint.
 
-**Phase:** 0 and 1 **done and merged into `develop`** (local `--no-ff` merges, 2026-09-25; not pushed). **Next: sandbox (Phases 2–5 subset), then Phase 2.** The sandbox must be complete before Phase 2.
-**Branching (from now on):** each phase branches from `develop` and merges back `--no-ff` at its checkpoint. Next branch: `feature/sandbox` from `develop`. The user pushes; the agent never pushes.
+**Phase:** 0 and 1 **done and merged into `develop`** (2026-09-25). **Sandbox done on `feature/sandbox`** (2026-09-26, 5 commits, not merged, not pushed): at its checkpoint, awaiting user review. **Next:** user OK → merge `feature/sandbox` into `develop` (`--no-ff`) → Phase 2 on `feature/phase-2-…` from `develop`.
+**Branching:** each phase branches from `develop` and merges back `--no-ff` at its checkpoint. The user pushes; the agent never pushes.
 **CI is last priority (user):** it has not run on GitHub. Don't spend effort on it until asked.
 
 ## Open items (owner: user)
@@ -13,9 +13,11 @@
 | Check (`uv run python scripts/dev.py <task>`) | Result |
 |---|---|
 | lint, format-check, typecheck (mypy `--strict`), imports (7 contracts) | all clean |
-| test (unit + docstring examples) | 310 passed |
+| test (unit + docstring examples) | 324 passed |
 | coverage (gate ≥ 90% on `core`) | 98% line+branch |
 | licenses / audit / secrets | 0 violations / no known vulns / no leaks |
+| sandbox-up / sandbox-smoke | 3/3 containers healthy (fresh volume, ~31 s); 4/4 probes pass |
+| sandbox-typecheck / sandbox-licenses | clean / 23 Python + 62 npm, 0 violations |
 Core API summary: `src/paccaassure_taf/core/CLAUDE.md`. CLI: `pataf config show [--resolved]` = `python -m paccaassure_taf config show`.
 Phase 1 review follow-ups done: ADR-0015 accepted; `core.runtime.apply_config()` applies `masking:`/`logging:` config at CLI startup (was not wired); learned masking values bounded (`masking.max_learned_values`, default 10,000, oldest-first; secrets pinned); Phase 2 has a masking performance check.
 
@@ -27,16 +29,14 @@ Phase 1 review follow-ups done: ADR-0015 accepted; `core.runtime.apply_config()`
 - Synthetic credentials contain `Northwind` (`.gitleaks.toml`). License signer never ships; production key in Phase 11.
 - Commit rules: small conventional commits with Co-Authored-By trailer; never push, force, or rewrite history.
 
-## Next: sandbox — only what Phases 2–5 need (BUILD_PLAN "Sandbox split")
-Stack: FastAPI API; Vite+Preact SPA behind nginx; Postgres 16 (`northwind` + `pataf_history`). Sandbox Python: ruff + standard mypy. Ports on 127.0.0.1: web **8081**, API **8083**, Postgres **5433** (8082 reserved for JSP). Synthetic data only (IDs like `NWH-M000123`; SSN-shaped values only in 9xx). Generated files with `newline="\n"`.
-1. `feat(sandbox): add postgres with synthetic Northwind Health seed`
-2. `feat(sandbox): add Northwind Health JSON API with OpenAPI` — auth/token, members (filters, paging), claims (201/409/422), plans, health, admin reset, `delay_ms`
-3. `feat(sandbox): add Northwind Health web app` — login/roles, search (labels, Status select, `data-testid` table, paging), detail (tabs, dialog), edit form, CSV download, new-tab link
-4. `build(sandbox): add dev.py sandbox tasks` — `sandbox-up/sandbox-smoke/sandbox-down`, sandbox license check
-5. `docs: CHANGELOG, BUILD_PLAN and STATUS`
-Stop at the checkpoint: report `docker compose up --wait` health + one smoke probe per app; merge `feature/sandbox` into `develop`.
-**Moved to Phase 6 prerequisites:** the Tomcat JSP app (spec in BUILD_PLAN Phase 6).
-Then Phase 2 (results model, elements, web, typed BDD, runner v1, `pataf doctor`, masking perf check).
+## Sandbox (done; details in `sandbox/README.md`, agent notes in `sandbox/CLAUDE.md`)
+Ports on 127.0.0.1 (**changed from 8081/8083/5433**, which are taken on this machine): web **18081**, API **18083**, Postgres **15433**, **18082** reserved for JSP. Configurable in `sandbox/.env` (gitignored; `dev.py sandbox-up` creates it from committed `sandbox/env.example`; `compose.yaml` has the same `${NWH_SANDBOX_*:-default}`s). Variable prefix `NWH_SANDBOX_`: `pataf` rejects unknown `PATAF_*` env vars.
+- Postgres 16: `northwind` (owner `northwind_app`; `northwind_ro` read-only, no credentials tables) + empty `pataf_history`. Seed = `nwh_reset_seed()` (deterministic: 6 plans, 250 members, 377 claims; well-known `NWH-M000123`). Passwords `pw-Northwind-*`.
+- API (FastAPI + pg8000, own `sandbox/api/uv.lock`): token (password/client_credentials), members, CSV export, claims 201/409/422, plans (public), health, admin reset, `delay_ms`, RFC 9457 problems. Accounts: `admin`/`examiner`/`viewer`/`locked`, password `pw-Northwind-<user>`.
+- Web (Vite 8 + Preact + TS 7, nginx proxies `/api/`): login, search, paging, tabs, dialog, edit form, CSV download, new tab. Verified end to end with Playwright (Edge channel).
+- Commits: postgres seed · JSON API · web app · `dev.py` sandbox tasks · docs.
+**Phase 6 prerequisite (not built):** the Tomcat JSP app (spec in BUILD_PLAN Phase 6), port 18082.
+**Phase 2 next:** results model, elements, web, typed BDD, runner v1, `pataf doctor`, masking perf check. The 10 sandbox web scenarios run against http://127.0.0.1:18081.
 
 ## Environment quirks (this dev machine)
 - **uv PATH:** shims `C:\Users\manikandane\bin\uv` (bash) and `uv.cmd` (cmd/PowerShell) forward to the winget install.
@@ -44,3 +44,6 @@ Then Phase 2 (results model, elements, web, typed BDD, runner v1, `pataf doctor`
 - Don't use `sed` or heredoc-embedded Python for text containing backslashes (Windows paths, regexes); use the Edit tool.
 - **PowerShell 5.1** is the user's shell (no `&&`); documented commands are cross-shell. `.gitattributes` keeps LF.
 - Docker Desktop 27 (Linux engine); the pre-commit gitleaks hook needs Docker running.
+- **Playwright browsers not installed** (`playwright install` never run). Edge works via `channel="msedge"`; `pataf doctor` (Phase 2) should report missing browsers.
+- **`sandbox/.env` is agent-read-denied** (`.claude/settings.json`), and so is `.env.*`: edit `sandbox/env.example`, never read the user's `.env`.
+- Ports already taken here: 3000, 5433 (native Postgres service), 5434, 8000, 8002, 8081. Check with `netstat -ano | findstr :<port>`.

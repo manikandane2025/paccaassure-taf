@@ -84,7 +84,8 @@ uv run pataf catalog                    # regenerate docs/catalog/*
 uv run pataf lint                       # steps + features + tags + locators + overrides
 uv run pytest tests/unit
 uv run python scripts/dev.py report-ui    # build report UI template (Phase 3+)
-docker compose -f sandbox/compose.yaml up -d --wait
+uv run python scripts/dev.py sandbox-up  # sandbox: build, start, wait healthy, smoke probe (ports: sandbox/.env)
+docker compose -f sandbox/compose.yaml up -d --build --wait
 ```
 `pataf …` commands arrive from Phase 2 onward.
 
