@@ -1,0 +1,36 @@
+# PaccaAssureTAF sandbox: the fictitious Northwind Health apps that framework e2e scenarios run against.
+# Synthetic data only. Ports and synthetic credentials: sandbox/.env (read automatically; created from
+# sandbox/env.example by `dev.py sandbox-up`). Defaults below apply when a value is not set there.
+#
+#   docker compose -f sandbox/compose.yaml up -d --build --wait
+#   uv run python scripts/dev.py sandbox-up      (same, plus a smoke probe per app)
+name: pataf-sandbox
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${NWH_SANDBOX_DB_SUPERUSER_PASSWORD:-pw-Northwind-postgres}
+      POSTGRES_DB: northwind
+      NWH_DB_APP_PASSWORD: ${NWH_SANDBOX_DB_APP_PASSWORD:-pw-Northwind-app}
+      NWH_DB_READONLY_PASSWORD: ${NWH_SANDBOX_DB_READONLY_PASSWORD:-pw-Northwind-readonly}
+      NWH_DB_HISTORY_PASSWORD: ${NWH_SANDBOX_DB_HISTORY_PASSWORD:-pw-Northwind-history}
+      TZ: UTC
+      PGTZ: UTC
+    ports:
+      - "127.0.0.1:${NWH_SANDBOX_DB_PORT:-15433}:5432"
+    volumes:
+      - ./postgres/initdb:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # TCP on purpose: during first-time init the server listens on the socket only,
+      # so this turns healthy only after the seed has been applied.
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "postgres", "-d", "northwind"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+volumes:
+  pgdata:
